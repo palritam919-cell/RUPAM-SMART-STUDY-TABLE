@@ -1,0 +1,2066 @@
+<!DOCTYPE html>
+<html lang="en" class="light">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>RUPAM SMART STUDY TABLE</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Hind+Siliguri:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            darkbg: '#030712',
+            darkcard: '#0f172a',
+            darkborder: '#1e293b'
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    body {
+      font-family: 'Plus Jakarta Sans', 'Hind Siliguri', sans-serif;
+      transition: background 0.3s ease, color 0.3s ease;
+      overflow-x: hidden;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    body.light {
+      background: radial-gradient(circle at 20% 20%, #ecfdf5 0%, #f0f9ff 50%, #f8fafc 100%);
+      color: #0f172a;
+    }
+
+    body.dark {
+      background: radial-gradient(circle at 15% 15%, #030712 0%, #080f1d 50%, #02060c 100%);
+      color: #f8fafc;
+    }
+
+    .stage-3d {
+      perspective: 1400px;
+      transform-style: preserve-3d;
+    }
+
+    .preserve-3d {
+      transform-style: preserve-3d;
+    }
+
+    .tilt-card {
+      position: relative;
+      transform-style: preserve-3d;
+      transition: transform 0.2s cubic-bezier(0.22, 1, 0.36, 1), box-shadow 0.25s ease;
+      will-change: transform;
+    }
+
+    .tilt-card .glare-layer {
+      position: absolute;
+      inset: 0;
+      border-radius: inherit;
+      pointer-events: none;
+      background: radial-gradient(circle at 50% 50%, rgba(255, 255, 255, 0.35), transparent 65%);
+      opacity: 0;
+      transition: opacity 0.25s ease;
+      z-index: 25;
+    }
+
+    .tilt-card:hover .glare-layer {
+      opacity: 1;
+    }
+
+    .depth-10 { transform: translateZ(14px); }
+    .depth-20 { transform: translateZ(28px); }
+    .depth-30 { transform: translateZ(44px); }
+
+    @keyframes float3D {
+      0%, 100% { transform: translateY(0px) rotateX(0deg) rotateY(0deg); }
+      33% { transform: translateY(-6px) rotateX(2deg) rotateY(-2deg); }
+      66% { transform: translateY(-3px) rotateX(-2deg) rotateY(2.5deg); }
+    }
+
+    @keyframes spinCube3D {
+      0% { transform: rotateX(20deg) rotateY(0deg) rotateZ(0deg); }
+      50% { transform: rotateX(-20deg) rotateY(180deg) rotateZ(10deg); }
+      100% { transform: rotateX(20deg) rotateY(360deg) rotateZ(0deg); }
+    }
+
+    @keyframes tabFlip3D {
+      0% {
+        opacity: 0;
+        transform: perspective(1200px) rotateX(-6deg) rotateY(3deg) translateY(16px) scale(0.98);
+      }
+      100% {
+        opacity: 1;
+        transform: perspective(1200px) rotateX(0deg) rotateY(0deg) translateY(0) scale(1);
+      }
+    }
+
+    .animate-float-3d { animation: float3D 6s ease-in-out infinite; }
+    .animate-cube-3d { animation: spinCube3D 12s linear infinite; }
+
+    .tab-panel { display: none; }
+    .tab-panel.active {
+      display: block;
+      animation: tabFlip3D 0.4s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+    }
+
+    body.light .glass-surface {
+      background: rgba(255, 255, 255, 0.85);
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+      border: 1px solid rgba(255, 255, 255, 0.95);
+      box-shadow: 0 16px 40px -10px rgba(5, 150, 105, 0.12), 0 6px 18px -4px rgba(2, 132, 199, 0.08), inset 0 1px 0 rgba(255, 255, 255, 0.95);
+    }
+
+    body.dark .glass-surface {
+      background: rgba(15, 23, 42, 0.82);
+      backdrop-filter: blur(24px);
+      -webkit-backdrop-filter: blur(24px);
+      border: 1px solid rgba(30, 41, 59, 0.85);
+      box-shadow: 0 20px 50px -12px rgba(0, 0, 0, 0.7), 0 8px 24px -6px rgba(5, 150, 105, 0.18), inset 0 1px 0 rgba(255, 255, 255, 0.08);
+    }
+
+    .iso-cube-wrapper {
+      width: 64px;
+      height: 64px;
+      perspective: 600px;
+    }
+    .iso-cube {
+      width: 100%;
+      height: 100%;
+      position: relative;
+      transform-style: preserve-3d;
+    }
+    .iso-face {
+      position: absolute;
+      width: 64px;
+      height: 64px;
+      border-radius: 14px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border: 1.5px solid rgba(255, 255, 255, 0.7);
+      backdrop-filter: blur(6px);
+      box-shadow: inset 0 0 14px rgba(255, 255, 255, 0.4);
+    }
+    .face-front  { background: linear-gradient(135deg, rgba(16,185,129,0.85), rgba(14,165,233,0.85)); transform: rotateY(0deg) translateZ(32px); }
+    .face-back   { background: linear-gradient(135deg, rgba(5,150,105,0.85), rgba(2,132,199,0.85)); transform: rotateY(180deg) translateZ(32px); }
+    .face-right  { background: linear-gradient(135deg, rgba(20,184,166,0.85), rgba(56,189,248,0.85)); transform: rotateY(90deg) translateZ(32px); }
+    .face-left   { background: linear-gradient(135deg, rgba(16,185,129,0.85), rgba(37,99,235,0.85)); transform: rotateY(-90deg) translateZ(32px); }
+    .face-top    { background: linear-gradient(135deg, rgba(110,231,183,0.88), rgba(125,211,252,0.88)); transform: rotateX(90deg) translateZ(32px); }
+    .face-bottom { background: linear-gradient(135deg, rgba(4,120,87,0.88), rgba(3,105,161,0.88)); transform: rotateX(-90deg) translateZ(32px); }
+
+    .btn-3d {
+      transition: transform 0.15s cubic-bezier(0.22, 1, 0.36, 1), box-shadow 0.15s ease;
+    }
+    .btn-3d:hover { transform: translateY(-2px); }
+    .btn-3d:active { transform: translateY(1px) scale(0.97); }
+
+    ::-webkit-scrollbar { width: 5px; height: 5px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: rgba(16, 185, 129, 0.35); border-radius: 999px; }
+  </style>
+</head>
+<body class="min-h-screen flex flex-col pb-28 relative selection:bg-emerald-500 selection:text-white">
+
+  <!-- Stunning Ultra-Deep 3D WebGL Background Canvas -->
+  <canvas id="bg3dCanvas" class="fixed inset-0 w-full h-full pointer-events-none z-0"></canvas>
+
+  <!-- STICKY HEADER -->
+  <header class="sticky top-0 z-40 w-full bg-white/90 dark:bg-[#030712]/90 backdrop-blur-2xl border-b border-emerald-100 dark:border-slate-800 shadow-sm transition-colors duration-300">
+    <div class="max-w-5xl mx-auto px-3 sm:px-6 py-2.5 sm:py-3 flex items-center justify-between gap-2">
+      <div class="flex items-center gap-2.5 sm:gap-3.5 min-w-0 flex-1">
+        <div class="shrink-0 w-10 h-10 sm:w-11 sm:h-11 rounded-2xl bg-gradient-to-br from-emerald-500 via-teal-500 to-sky-600 flex items-center justify-center text-white shadow-lg shadow-emerald-500/25 ring-2 ring-white/20 animate-float-3d">
+          <i data-lucide="graduation-cap" class="w-5 h-5 sm:w-6 sm:h-6"></i>
+        </div>
+        <div class="min-w-0 flex-1">
+          <h1 class="text-[13px] sm:text-lg md:text-xl font-extrabold tracking-tight leading-snug bg-gradient-to-r from-emerald-600 via-teal-600 to-sky-600 dark:from-emerald-400 dark:via-teal-400 dark:to-sky-400 bg-clip-text text-transparent break-words">
+            RUPAM SMART STUDY TABLE
+          </h1>
+          <p id="headerSubtitle" class="text-[11px] sm:text-xs font-semibold text-emerald-700 dark:text-emerald-400 leading-snug mt-0.5 break-words">
+            Small daily efforts lead to great success tomorrow.
+          </p>
+        </div>
+      </div>
+
+      <div class="flex items-center gap-1.5 sm:gap-2 shrink-0">
+        <!-- Night Dark Mode Toggle -->
+        <button
+          id="darkModeToggleBtn"
+          onclick="toggleDarkMode()"
+          class="btn-3d w-8 h-8 sm:w-9 sm:h-9 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-amber-400 flex items-center justify-center shadow-sm border border-slate-200 dark:border-slate-700"
+          title="Toggle Night Dark Mode"
+        >
+          <i id="darkModeIcon" data-lucide="moon" class="w-4 h-4"></i>
+        </button>
+
+        <button
+          onclick="downloadAppCode()"
+          class="btn-3d flex items-center gap-1.5 px-3 sm:px-3.5 py-1.5 sm:py-2 rounded-full bg-gradient-to-r from-emerald-600 to-sky-600 hover:from-emerald-700 hover:to-sky-700 text-white font-bold text-xs sm:text-sm shadow-md"
+          title="Download App Code"
+        >
+          <i data-lucide="download" class="w-3.5 h-3.5 sm:w-4 sm:h-4"></i>
+          <span class="hidden sm:inline">Download</span>
+        </button>
+
+        <button
+          id="langToggleBtn"
+          onclick="toggleLanguage()"
+          class="btn-3d flex items-center gap-1.5 px-3 sm:px-3.5 py-1.5 sm:py-2 rounded-full bg-emerald-50 dark:bg-slate-800 hover:bg-emerald-100 dark:hover:bg-slate-700 border border-emerald-200 dark:border-slate-700 text-emerald-800 dark:text-emerald-300 font-bold text-xs sm:text-sm shadow-sm"
+        >
+          <i data-lucide="globe" class="w-3.5 h-3.5 sm:w-4 sm:h-4 text-emerald-600 dark:text-emerald-400"></i>
+          <span id="langToggleLabel">বাংলা</span>
+        </button>
+
+        <button
+          onclick="openGuideModal()"
+          class="btn-3d w-8 h-8 sm:w-9 sm:h-9 rounded-full bg-slate-800 dark:bg-slate-700 text-white flex items-center justify-center shadow-sm"
+          title="Android Guide"
+        >
+          <span class="font-bold text-xs sm:text-sm">?</span>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- MAIN STAGE -->
+  <main class="relative z-10 flex-1 w-full max-w-5xl mx-auto px-3 sm:px-6 pt-4 sm:pt-6 space-y-6">
+
+    <!-- ==================== TAB 1: DASHBOARD ==================== -->
+    <section id="tab-dashboard" class="tab-panel active space-y-5 sm:space-y-6">
+      <div class="stage-3d">
+        <div
+          data-tilt
+          class="tilt-card animate-float-3d rounded-3xl p-5 sm:p-8 text-white bg-gradient-to-br from-emerald-600 via-teal-600 to-sky-600 dark:from-emerald-950 dark:via-teal-950 dark:to-sky-950 shadow-2xl shadow-emerald-700/25 overflow-hidden border border-white/15"
+        >
+          <div class="glare-layer"></div>
+          <div class="absolute inset-0 opacity-15 pointer-events-none" style="background-image: radial-gradient(#ffffff 1px, transparent 1px); background-size: 20px 20px;"></div>
+
+          <div class="relative z-10 preserve-3d flex flex-col md:flex-row md:items-center justify-between gap-6">
+            <div class="space-y-3.5 max-w-xl">
+              <div class="depth-10 inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-white/15 backdrop-blur-md border border-white/25 text-xs font-semibold">
+                <span class="w-2 h-2 rounded-full bg-emerald-300 animate-ping"></span>
+                <span data-i18n="welcomeBadge">Welcome to Rupam Smart Study Table</span>
+              </div>
+
+              <h2 data-i18n="heroTitle" class="depth-20 text-2xl sm:text-4xl font-extrabold tracking-tight leading-tight">
+                Study smarter, achieve greater goals
+              </h2>
+
+              <p data-i18n="heroDesc" class="depth-10 text-emerald-50/95 text-xs sm:text-base leading-relaxed">
+                Organize any custom subject, set your personal daily routine, focus with the Pomodoro timer, and master your syllabus.
+              </p>
+
+              <!-- Rotating Quote Box -->
+              <div
+                onclick="nextQuote()"
+                class="depth-20 rounded-2xl bg-white/12 backdrop-blur-md border border-white/25 p-3.5 sm:p-4 flex items-start justify-between gap-3 cursor-pointer hover:bg-white/20 transition group"
+                title="Click anywhere to change quote!"
+              >
+                <div class="space-y-1">
+                  <p id="quoteText" class="italic text-xs sm:text-sm font-medium text-white leading-relaxed">
+                    "Success is the sum of small efforts, repeated day in and day out."
+                  </p>
+                  <p id="quoteAuthor" class="text-[11px] sm:text-xs font-bold text-emerald-200">
+                    — Robert Collier
+                  </p>
+                </div>
+                <button
+                  onclick="event.stopPropagation(); nextQuote();"
+                  class="shrink-0 p-2 rounded-xl bg-white/15 group-hover:bg-white/30 text-white transition active:rotate-180 duration-300 shadow-sm"
+                  title="Next Author Quote"
+                >
+                  <i data-lucide="refresh-cw" class="w-4 h-4"></i>
+                </button>
+              </div>
+            </div>
+
+            <!-- 3D Rotating Cube -->
+            <div class="depth-30 flex md:flex-col items-center justify-between md:justify-center gap-4 bg-white/12 backdrop-blur-md border border-white/25 rounded-2xl p-4 sm:p-5 shrink-0">
+              <div class="iso-cube-wrapper">
+                <div class="iso-cube animate-cube-3d">
+                  <div class="iso-face face-front"><i data-lucide="book-open" class="w-6 h-6 text-white"></i></div>
+                  <div class="iso-face face-back"><i data-lucide="award" class="w-6 h-6 text-white"></i></div>
+                  <div class="iso-face face-right"><i data-lucide="clock" class="w-6 h-6 text-white"></i></div>
+                  <div class="iso-face face-left"><i data-lucide="sparkles" class="w-6 h-6 text-white"></i></div>
+                  <div class="iso-face face-top"><i data-lucide="brain" class="w-6 h-6 text-white"></i></div>
+                  <div class="iso-face face-bottom"><i data-lucide="target" class="w-6 h-6 text-white"></i></div>
+                </div>
+              </div>
+              <div class="text-right md:text-center">
+                <span data-i18n="liveMode" class="text-[10px] uppercase tracking-widest font-bold text-emerald-200 block">3D Smart Mode</span>
+                <span id="liveClock" class="text-lg sm:text-xl font-extrabold tabular-nums tracking-tight">00:00:00</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="relative z-10 depth-10 mt-5 pt-4 border-t border-white/15 flex flex-wrap items-center gap-2.5">
+            <div class="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-black/25 backdrop-blur-sm border border-white/15 text-xs font-bold">
+              <i data-lucide="flame" class="w-4 h-4 text-amber-300 fill-amber-300"></i>
+              <span id="streakBadge">1 Day Streak</span>
+            </div>
+            <div class="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-black/25 backdrop-blur-sm border border-white/15 text-xs font-bold">
+              <i data-lucide="clock" class="w-4 h-4 text-sky-200"></i>
+              <span id="studiedBadge">0h 45m Studied</span>
+            </div>
+            <div class="ml-auto flex items-center gap-2">
+              <button
+                onclick="openCustomSubjectModal()"
+                class="btn-3d inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-emerald-950/45 hover:bg-emerald-950/70 border border-white/25 text-white font-bold text-xs"
+              >
+                <i data-lucide="plus-circle" class="w-3.5 h-3.5"></i>
+                <span data-i18n="quickAddSubBtn">+ Subject</span>
+              </button>
+              <button
+                onclick="switchTab('timer')"
+                class="btn-3d inline-flex items-center gap-1.5 px-4 py-1.5 rounded-full bg-white text-emerald-800 hover:bg-emerald-50 font-bold text-xs shadow-md"
+              >
+                <i data-lucide="play" class="w-3.5 h-3.5 fill-emerald-700"></i>
+                <span data-i18n="startFocusBtn">Start Focus</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Metrics Grid -->
+      <div class="stage-3d grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <div data-tilt class="tilt-card glass-surface rounded-2xl p-4 sm:p-5">
+          <div class="glare-layer"></div>
+          <div class="preserve-3d space-y-3">
+            <div class="flex items-center justify-between">
+              <div class="w-10 h-10 rounded-xl bg-emerald-100 dark:bg-emerald-950/80 text-emerald-600 dark:text-emerald-400 flex items-center justify-center depth-10">
+                <i data-lucide="target" class="w-5 h-5"></i>
+              </div>
+              <button onclick="switchTab('routine')" class="text-xs font-semibold text-sky-600 dark:text-sky-400 hover:underline flex items-center gap-1 px-2.5 py-1 rounded-lg bg-sky-50 dark:bg-sky-950/50">
+                <i data-lucide="edit-3" class="w-3 h-3"></i>
+                <span data-i18n="editGoal">Edit Routine</span>
+              </button>
+            </div>
+            <div class="depth-10">
+              <p data-i18n="dailyGoalLabel" class="text-xs font-semibold text-slate-500 dark:text-slate-400">Today's Study Goal</p>
+              <div class="flex items-baseline justify-between mt-1">
+                <h3 id="goalProgressText" class="text-xl font-extrabold text-slate-800 dark:text-white">45 / 240 min</h3>
+                <span id="goalPercentText" class="text-xs font-bold text-emerald-600 dark:text-emerald-400">19%</span>
+              </div>
+            </div>
+            <div class="w-full h-2.5 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
+              <div id="goalProgressBar" class="h-full bg-gradient-to-r from-emerald-500 to-sky-500 rounded-full transition-all duration-500" style="width: 19%"></div>
+            </div>
+          </div>
+        </div>
+
+        <div data-tilt class="tilt-card glass-surface rounded-2xl p-4 sm:p-5">
+          <div class="glare-layer"></div>
+          <div class="preserve-3d space-y-3">
+            <div class="flex items-center justify-between">
+              <div class="w-10 h-10 rounded-xl bg-sky-100 dark:bg-sky-950/80 text-sky-600 dark:text-sky-400 flex items-center justify-center depth-10">
+                <i data-lucide="check-circle-2" class="w-5 h-5"></i>
+              </div>
+              <button onclick="switchTab('tasks')" class="text-xs font-semibold text-emerald-700 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/50 px-2.5 py-1 rounded-lg">
+                <span data-i18n="viewAll">View All</span>
+              </button>
+            </div>
+            <div class="depth-10">
+              <p data-i18n="tasksDoneLabel" class="text-xs font-semibold text-slate-500 dark:text-slate-400">Tasks Completed</p>
+              <h3 id="dashboardTaskStat" class="text-xl font-extrabold text-slate-800 dark:text-white mt-1">1 / 2</h3>
+            </div>
+            <p data-i18n="momentumHint" class="text-xs text-slate-500 dark:text-slate-400 font-medium">Keep up your momentum!</p>
+          </div>
+        </div>
+
+        <div data-tilt class="tilt-card glass-surface rounded-2xl p-4 sm:p-5">
+          <div class="glare-layer"></div>
+          <div class="preserve-3d space-y-3">
+            <div class="flex items-center justify-between">
+              <div class="w-10 h-10 rounded-xl bg-teal-100 dark:bg-teal-950/80 text-teal-600 dark:text-teal-400 flex items-center justify-center depth-10">
+                <i data-lucide="layers" class="w-5 h-5"></i>
+              </div>
+              <button onclick="addRandomSubjectInstant()" class="text-xs font-semibold text-teal-700 dark:text-teal-300 bg-teal-50 dark:bg-teal-950/50 hover:bg-teal-100 dark:hover:bg-teal-900 px-2.5 py-1 rounded-lg transition">
+                <span data-i18n="randomSubMini">🎲 Random</span>
+              </button>
+            </div>
+            <div class="depth-10">
+              <p data-i18n="subjectsLabel" class="text-xs font-semibold text-slate-500 dark:text-slate-400">Study Subjects & Slots</p>
+              <h3 id="dashboardSubjectStat" class="text-xl font-extrabold text-slate-800 dark:text-white mt-1">4 Subjects</h3>
+            </div>
+            <p data-i18n="smartOrganized" class="text-xs text-emerald-600 dark:text-emerald-400 font-semibold">Any Custom Subject Ready</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Schedule Preview -->
+      <div class="stage-3d">
+        <div data-tilt class="tilt-card glass-surface rounded-3xl p-5 sm:p-6 space-y-4">
+          <div class="glare-layer"></div>
+          <div class="relative z-10 flex items-center justify-between">
+            <div class="flex items-center gap-2.5">
+              <div class="w-8 h-8 rounded-xl bg-gradient-to-br from-emerald-500 to-sky-500 text-white flex items-center justify-center">
+                <i data-lucide="calendar-days" class="w-4 h-4"></i>
+              </div>
+              <h3 data-i18n="todayScheduleTitle" class="font-bold text-slate-800 dark:text-white text-base sm:text-lg">Today's Study Schedule</h3>
+            </div>
+            <button onclick="switchTab('table')" class="text-xs font-bold text-emerald-700 dark:text-emerald-400 hover:underline flex items-center gap-1">
+              <span data-i18n="manageTable">Manage Table</span>
+              <i data-lucide="arrow-right" class="w-3.5 h-3.5"></i>
+            </button>
+          </div>
+          <div id="dashboardScheduleList" class="relative z-10 grid grid-cols-1 sm:grid-cols-2 gap-3"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ==================== TAB 2: PERSONAL DAILY ROUTINE PLANNER ==================== -->
+    <section id="tab-routine" class="tab-panel space-y-5">
+      <div class="stage-3d">
+        <div data-tilt class="tilt-card glass-surface rounded-3xl p-5 sm:p-8 space-y-6">
+          <div class="glare-layer"></div>
+          
+          <div class="relative z-10 flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-emerald-100 dark:border-slate-800">
+            <div>
+              <div class="inline-flex items-center gap-2 px-3.5 py-1 rounded-full bg-emerald-100 dark:bg-emerald-950/80 text-emerald-800 dark:text-emerald-300 font-bold text-xs mb-2">
+                <i data-lucide="calendar" class="w-3.5 h-3.5"></i>
+                <span data-i18n="routinePlannerBadge">Personal Daily Routine</span>
+              </div>
+              <h2 data-i18n="routineTitle" class="text-xl sm:text-2xl font-extrabold text-slate-800 dark:text-white">Personal Daily Routine</h2>
+              <p data-i18n="routineSub" class="text-xs sm:text-sm text-slate-500 dark:text-slate-400 mt-0.5">Customize your daily wake up, sleep, college, and study hours.</p>
+            </div>
+
+            <button
+              onclick="savePersonalRoutine(event)"
+              class="btn-3d inline-flex items-center justify-center gap-2 px-6 py-3 rounded-2xl bg-gradient-to-r from-emerald-600 to-teal-600 text-white font-extrabold text-xs sm:text-sm shadow-lg shadow-emerald-600/25 shrink-0"
+            >
+              <i data-lucide="save" class="w-4 h-4"></i>
+              <span data-i18n="saveRoutineBtn">Save Routine</span>
+            </button>
+          </div>
+
+          <form id="personalRoutineForm" onsubmit="savePersonalRoutine(event)" class="relative z-10 grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
+            
+            <div class="space-y-1.5">
+              <label data-i18n="wakeLabel" class="block text-xs font-bold text-slate-700 dark:text-slate-300">Wake-up Time</label>
+              <input
+                id="routineWakeInput"
+                type="time"
+                value="06:00"
+                class="w-full px-4 py-3 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-sm font-bold text-slate-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-emerald-500 shadow-inner"
+              />
+            </div>
+
+            <div class="space-y-1.5">
+              <label data-i18n="sleepLabel" class="block text-xs font-bold text-slate-700 dark:text-slate-300">Sleeping Time</label>
+              <input
+                id="routineSleepInput"
+                type="time"
+                value="22:00"
+                class="w-full px-4 py-3 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-sm font-bold text-slate-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-emerald-500 shadow-inner"
+              />
+            </div>
+
+            <div class="space-y-1.5 md:col-span-2">
+              <label data-i18n="collegeTimeLabel" class="block text-xs font-bold text-slate-700 dark:text-slate-300">College / School Time Range</label>
+              <div class="grid grid-cols-2 gap-3">
+                <input
+                  id="routineCollegeStart"
+                  type="time"
+                  value="09:00"
+                  class="w-full px-4 py-3 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-sm font-bold text-slate-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-emerald-500 shadow-inner"
+                />
+                <input
+                  id="routineCollegeEnd"
+                  type="time"
+                  value="15:00"
+                  class="w-full px-4 py-3 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-sm font-bold text-slate-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-emerald-500 shadow-inner"
+                />
+              </div>
+            </div>
+
+            <div class="space-y-1.5">
+              <label data-i18n="dailyStudyHoursLabel" class="block text-xs font-bold text-slate-700 dark:text-slate-300">Daily Study Target (Hours)</label>
+              <input
+                id="routineStudyHoursInput"
+                type="number"
+                min="1"
+                max="16"
+                value="4"
+                class="w-full px-4 py-3 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-sm font-bold text-slate-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-emerald-500 shadow-inner"
+              />
+            </div>
+
+            <div class="space-y-1.5">
+              <label data-i18n="breakDurationLabel" class="block text-xs font-bold text-slate-700 dark:text-slate-300">Break Duration (mins)</label>
+              <input
+                id="routineBreakMinsInput"
+                type="number"
+                min="5"
+                max="60"
+                value="15"
+                class="w-full px-4 py-3 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-sm font-bold text-slate-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-emerald-500 shadow-inner"
+              />
+            </div>
+
+            <div class="space-y-1.5 md:col-span-2">
+              <label data-i18n="mealTimesLabel" class="block text-xs font-bold text-slate-700 dark:text-slate-300">Meal Times</label>
+              <input
+                id="routineMealInput"
+                type="text"
+                value="8:00 AM, 2:00 PM, 9:00 PM"
+                class="w-full px-4 py-3 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-sm font-bold text-slate-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-emerald-500 shadow-inner"
+              />
+            </div>
+          </form>
+
+        </div>
+      </div>
+    </section>
+
+    <!-- ==================== TAB 3: STUDY TABLE ==================== -->
+    <section id="tab-table" class="tab-panel space-y-5">
+      <div class="glass-surface rounded-3xl p-5 sm:p-6 space-y-5">
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div>
+            <h2 data-i18n="studyTableHeading" class="text-xl sm:text-2xl font-extrabold text-slate-800 dark:text-white">Smart Study Table</h2>
+            <p data-i18n="studyTableSub" class="text-xs sm:text-sm text-slate-500 dark:text-slate-400">Schedule any subject or generate random study slots</p>
+          </div>
+          <div class="flex flex-wrap items-center gap-2">
+            <button
+              onclick="addRandomRoutineSlot()"
+              class="btn-3d inline-flex items-center justify-center gap-1.5 px-3.5 py-2.5 rounded-2xl bg-sky-50 dark:bg-sky-950/50 hover:bg-sky-100 dark:hover:bg-sky-900 border border-sky-200 dark:border-sky-800 text-sky-800 dark:text-sky-300 font-bold text-xs sm:text-sm"
+            >
+              <span>🎲</span>
+              <span data-i18n="randomSlotBtn">Random Slot</span>
+            </button>
+            <button
+              onclick="openSlotModal()"
+              class="btn-3d inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-2xl bg-gradient-to-r from-emerald-600 to-sky-600 text-white font-bold text-xs sm:text-sm shadow-lg shadow-emerald-600/20"
+            >
+              <i data-lucide="plus" class="w-4 h-4"></i>
+              <span data-i18n="addSlotBtn">Add Study Slot</span>
+            </button>
+          </div>
+        </div>
+
+        <div id="dayPills" class="flex items-center gap-2 overflow-x-auto pb-1"></div>
+        <div id="routineList" class="stage-3d grid grid-cols-1 md:grid-cols-2 gap-3.5"></div>
+      </div>
+    </section>
+
+    <!-- ==================== TAB 4: 3D POMODORO TIMER ==================== -->
+    <section id="tab-timer" class="tab-panel space-y-5">
+      <div class="stage-3d max-w-lg mx-auto">
+        <div data-tilt class="tilt-card glass-surface rounded-3xl p-6 sm:p-8 text-center space-y-5">
+          <div class="glare-layer"></div>
+
+          <div class="preserve-3d space-y-2">
+            <span data-i18n="pomodoroBadge" class="depth-10 inline-block px-3.5 py-1 rounded-full bg-emerald-100 dark:bg-emerald-950/80 text-emerald-700 dark:text-emerald-300 font-bold text-xs">
+              3D Deep Focus Timer
+            </span>
+            <h2 id="timerModeTitle" class="depth-20 text-xl sm:text-2xl font-extrabold text-slate-800 dark:text-white">Focus Session</h2>
+          </div>
+
+          <div class="relative z-10 flex items-center justify-center gap-2">
+            <label data-i18n="focusSubjectLabel" class="text-xs font-bold text-slate-500 dark:text-slate-400">Studying:</label>
+            <select id="timerSubjectSelect" class="px-3 py-1.5 rounded-xl bg-white dark:bg-slate-900 border border-emerald-200 dark:border-slate-700 text-xs font-bold text-emerald-800 dark:text-emerald-300 focus:outline-none focus:ring-2 focus:ring-emerald-500"></select>
+          </div>
+
+          <!-- Presets & Custom Minute Inputs (Focus & Break) -->
+          <div class="relative z-10 space-y-3">
+            <div class="flex flex-wrap items-center justify-center gap-2">
+              <button onclick="setTimerPreset(15, 'focus')" class="btn-3d px-3 py-1.5 rounded-xl text-xs font-bold bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-emerald-100 dark:hover:bg-emerald-900 hover:text-emerald-800">15m Focus</button>
+              <button onclick="setTimerPreset(25, 'focus')" class="btn-3d px-3 py-1.5 rounded-xl text-xs font-bold bg-emerald-600 text-white shadow-sm">25m Focus</button>
+              <button onclick="setTimerPreset(45, 'focus')" class="btn-3d px-3 py-1.5 rounded-xl text-xs font-bold bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-emerald-100 dark:hover:bg-emerald-900 hover:text-emerald-800">45m Focus</button>
+              <button onclick="setTimerPreset(60, 'focus')" class="btn-3d px-3 py-1.5 rounded-xl text-xs font-bold bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-emerald-100 dark:hover:bg-emerald-900 hover:text-emerald-800">60m Focus</button>
+              <button onclick="setTimerPreset(5, 'break')" class="btn-3d px-3 py-1.5 rounded-xl text-xs font-bold bg-sky-50 dark:bg-sky-950/50 text-sky-700 dark:text-sky-300 hover:bg-sky-100">5m Break</button>
+              <button onclick="setTimerPreset(15, 'break')" class="btn-3d px-3 py-1.5 rounded-xl text-xs font-bold bg-sky-50 dark:bg-sky-950/50 text-sky-700 dark:text-sky-300 hover:bg-sky-100">15m Break</button>
+            </div>
+
+            <!-- Custom Focus & Break Inputs Row -->
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5 pt-1">
+              <div class="flex items-center justify-center gap-1.5 bg-slate-50 dark:bg-slate-900/60 p-2 rounded-2xl border border-slate-200 dark:border-slate-800">
+                <span class="text-[11px] font-bold text-slate-600 dark:text-slate-300" data-i18n="customFocusLabel">Focus Min:</span>
+                <input
+                  id="customFocusMinsInput"
+                  type="number"
+                  min="1"
+                  max="300"
+                  value="30"
+                  class="w-16 px-2.5 py-1 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-xs font-bold text-center text-slate-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-emerald-500 shadow-inner"
+                />
+                <button
+                  onclick="applyCustomFocusTime()"
+                  class="btn-3d px-2.5 py-1 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 text-white font-bold text-[11px] shadow-sm"
+                  data-i18n="setBtn"
+                >Set</button>
+              </div>
+
+              <div class="flex items-center justify-center gap-1.5 bg-slate-50 dark:bg-slate-900/60 p-2 rounded-2xl border border-slate-200 dark:border-slate-800">
+                <span class="text-[11px] font-bold text-slate-600 dark:text-slate-300" data-i18n="customBreakLabel">Break Min:</span>
+                <input
+                  id="customBreakMinsInput"
+                  type="number"
+                  min="1"
+                  max="120"
+                  value="10"
+                  class="w-16 px-2.5 py-1 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-xs font-bold text-center text-slate-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-sky-500 shadow-inner"
+                />
+                <button
+                  onclick="applyCustomBreakTime()"
+                  class="btn-3d px-2.5 py-1 rounded-xl bg-gradient-to-r from-sky-600 to-blue-600 text-white font-bold text-[11px] shadow-sm"
+                  data-i18n="setBtn"
+                >Set</button>
+              </div>
+            </div>
+          </div>
+
+          <div class="depth-30 relative w-60 h-60 sm:w-64 sm:h-64 mx-auto flex items-center justify-center">
+            <div class="absolute inset-3 rounded-full bg-gradient-to-tr from-emerald-50 to-sky-50 dark:from-slate-900 dark:to-slate-800 shadow-inner"></div>
+            <svg class="w-full h-full -rotate-90 transform" viewBox="0 0 240 240">
+              <circle cx="120" cy="120" r="104" stroke="#e2e8f0" class="dark:stroke-slate-800" stroke-width="12" fill="none" />
+              <circle
+                id="timerRing"
+                cx="120"
+                cy="120"
+                r="104"
+                stroke="url(#timerGrad)"
+                stroke-width="12"
+                stroke-linecap="round"
+                fill="none"
+                stroke-dasharray="653.45"
+                stroke-dashoffset="0"
+                class="transition-all duration-500"
+              />
+              <defs>
+                <linearGradient id="timerGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+                  <stop offset="0%" stop-color="#10b981" />
+                  <stop offset="100%" stop-color="#0284c7" />
+                </linearGradient>
+              </defs>
+            </svg>
+            <div class="absolute inset-0 flex flex-col items-center justify-center">
+              <span id="timerDisplay" class="text-4xl sm:text-5xl font-extrabold text-slate-800 dark:text-white tabular-nums tracking-tight">25:00</span>
+              <span id="timerStatusText" class="text-xs font-semibold text-emerald-600 dark:text-emerald-400 mt-1.5">Ready to focus</span>
+            </div>
+          </div>
+
+          <div class="relative z-10 flex items-center justify-center gap-3">
+            <button
+              id="timerStartBtn"
+              onclick="toggleTimer()"
+              class="btn-3d flex items-center gap-2 px-7 py-3.5 rounded-2xl bg-gradient-to-r from-emerald-600 to-sky-600 text-white font-extrabold text-sm shadow-xl shadow-emerald-600/25"
+            >
+              <i data-lucide="play" class="w-4 h-4 fill-white"></i>
+              <span id="timerStartLabel">Start</span>
+            </button>
+            <button
+              onclick="resetTimer()"
+              class="btn-3d p-3.5 rounded-2xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 font-bold"
+              title="Reset"
+            >
+              <i data-lucide="rotate-ccw" class="w-5 h-5"></i>
+            </button>
+            <button
+              onclick="completeSessionEarly()"
+              class="btn-3d px-4 py-3.5 rounded-2xl bg-emerald-50 dark:bg-emerald-950/60 hover:bg-emerald-100 text-emerald-700 dark:text-emerald-300 font-bold text-xs"
+              title="Log +5 mins"
+            >
+              +5m Log
+            </button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ==================== TAB 5: SUBJECTS & TASKS ==================== -->
+    <section id="tab-tasks" class="tab-panel space-y-6">
+      <div class="glass-surface rounded-3xl p-5 sm:p-6 space-y-4">
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div>
+            <h2 data-i18n="subjectsHeading" class="text-lg sm:text-xl font-extrabold text-slate-800 dark:text-white">All Subjects & Syllabus</h2>
+            <p data-i18n="subjectsSub" class="text-xs text-slate-500 dark:text-slate-400">Add any custom subject or pick a random one</p>
+          </div>
+          <div class="flex flex-wrap items-center gap-2">
+            <button
+              onclick="addRandomSubjectInstant()"
+              class="btn-3d inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-sky-50 dark:bg-sky-950/50 hover:bg-sky-100 border border-sky-200 dark:border-sky-800 text-sky-800 dark:text-sky-300 font-bold text-xs"
+            >
+              <span>🎲</span>
+              <span data-i18n="randomSubBtn">Random Subject</span>
+            </button>
+            <button
+              onclick="openCustomSubjectModal()"
+              class="btn-3d inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-gradient-to-r from-emerald-600 to-sky-600 text-white font-bold text-xs shadow-sm"
+            >
+              <i data-lucide="plus" class="w-3.5 h-3.5"></i>
+              <span data-i18n="addSubjectBtn">Add Any Subject</span>
+            </button>
+          </div>
+        </div>
+
+        <div id="subjectsGrid" class="stage-3d grid grid-cols-1 sm:grid-cols-2 gap-3.5"></div>
+      </div>
+
+      <div class="glass-surface rounded-3xl p-5 sm:p-6 space-y-4">
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div>
+            <h2 data-i18n="tasksHeading" class="text-lg sm:text-xl font-extrabold text-slate-800 dark:text-white">Homework & Study Tasks</h2>
+            <p data-i18n="tasksSub" class="text-xs text-slate-500 dark:text-slate-400">Organize daily assignments and exam prep</p>
+          </div>
+          <form onsubmit="addTask(event)" class="flex flex-wrap sm:flex-nowrap gap-2">
+            <input
+              id="newTaskInput"
+              type="text"
+              required
+              placeholder="Enter task..."
+              class="flex-1 min-w-[160px] px-3.5 py-2 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-xs sm:text-sm text-slate-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-emerald-500"
+            />
+            <select id="newTaskPriority" class="px-2.5 py-2 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-xs font-semibold text-slate-700 dark:text-slate-300">
+              <option value="High">High</option>
+              <option value="Medium" selected>Medium</option>
+              <option value="Low">Low</option>
+            </select>
+            <button type="submit" class="btn-3d px-4 py-2 rounded-xl bg-gradient-to-r from-emerald-600 to-sky-600 text-white font-bold text-xs shadow-sm">
+              <span data-i18n="addBtn">Add</span>
+            </button>
+          </form>
+        </div>
+
+        <div id="taskList" class="space-y-2.5"></div>
+      </div>
+    </section>
+
+    <!-- ==================== TAB 6: NOTES PAD ==================== -->
+    <section id="tab-notes" class="tab-panel space-y-5">
+      <div class="stage-3d">
+        <div data-tilt class="tilt-card glass-surface rounded-3xl p-5 sm:p-6 space-y-4">
+          <div class="glare-layer"></div>
+          <div class="relative z-10 flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <h2 data-i18n="notesHeading" class="text-xl font-extrabold text-slate-800 dark:text-white">Smart Quick Notes</h2>
+              <p data-i18n="notesSub" class="text-xs text-slate-500 dark:text-slate-400">Auto-saved locally on your device</p>
+            </div>
+            <div class="flex items-center gap-2">
+              <button onclick="copyNotes()" class="btn-3d inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-sky-50 dark:bg-sky-950/60 hover:bg-sky-100 text-sky-700 dark:text-sky-300 font-bold text-xs">
+                <i data-lucide="copy" class="w-3.5 h-3.5"></i>
+                <span data-i18n="copyBtn">Copy</span>
+              </button>
+              <button onclick="clearNotes()" class="btn-3d inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-rose-50 dark:bg-rose-950/60 hover:bg-rose-100 text-rose-600 dark:text-rose-300 font-bold text-xs">
+                <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
+                <span data-i18n="clearBtn">Clear</span>
+              </button>
+            </div>
+          </div>
+
+          <textarea
+            id="notesArea"
+            rows="11"
+            oninput="saveNotes()"
+            placeholder="Write formulas, key definitions, or quick revision points here..."
+            class="relative z-10 w-full rounded-2xl bg-white/95 dark:bg-slate-900 border border-emerald-100 dark:border-slate-800 p-4 text-sm text-slate-800 dark:text-slate-100 leading-relaxed focus:outline-none focus:ring-2 focus:ring-emerald-500 shadow-inner"
+          ></textarea>
+
+          <div class="relative z-10 flex items-center justify-between text-xs text-slate-500 dark:text-slate-400 font-medium">
+            <span id="noteStats">0 words • 0 chars</span>
+            <span class="inline-flex items-center gap-1 text-emerald-600 dark:text-emerald-400 font-semibold">
+              <i data-lucide="check" class="w-3.5 h-3.5"></i>
+              <span data-i18n="savedLocally">Saved</span>
+            </span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- FIXED BOTTOM NAVIGATION BAR -->
+  <nav class="fixed bottom-0 inset-x-0 z-40 bg-white/95 dark:bg-[#030712]/95 backdrop-blur-2xl border-t border-slate-200 dark:border-slate-800 shadow-[0_-6px_24px_rgba(15,23,42,0.06)]">
+    <div class="max-w-3xl mx-auto grid grid-cols-6 px-1 py-1.5">
+      <button onclick="switchTab('dashboard')" data-nav="dashboard" class="nav-btn flex flex-col items-center justify-center py-1.5 rounded-2xl text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/50 font-bold transition">
+        <i data-lucide="home" class="w-4 h-4 sm:w-5 sm:h-5"></i>
+        <span data-i18n="navDashboard" class="text-[9px] sm:text-[11px] mt-1 leading-tight">Dashboard</span>
+      </button>
+      <button onclick="switchTab('routine')" data-nav="routine" class="nav-btn flex flex-col items-center justify-center py-1.5 rounded-2xl text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 font-medium transition">
+        <i data-lucide="calendar" class="w-4 h-4 sm:w-5 sm:h-5"></i>
+        <span data-i18n="navRoutine" class="text-[9px] sm:text-[11px] mt-1 leading-tight text-center">Routine</span>
+      </button>
+      <button onclick="switchTab('table')" data-nav="table" class="nav-btn flex flex-col items-center justify-center py-1.5 rounded-2xl text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 font-medium transition">
+        <i data-lucide="calendar-range" class="w-4 h-4 sm:w-5 sm:h-5"></i>
+        <span data-i18n="navTable" class="text-[9px] sm:text-[11px] mt-1 leading-tight text-center">Table</span>
+      </button>
+      <button onclick="switchTab('timer')" data-nav="timer" class="nav-btn flex flex-col items-center justify-center py-1.5 rounded-2xl text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 font-medium transition">
+        <i data-lucide="timer" class="w-4 h-4 sm:w-5 sm:h-5"></i>
+        <span data-i18n="navTimer" class="text-[9px] sm:text-[11px] mt-1 leading-tight">Timer</span>
+      </button>
+      <button onclick="switchTab('tasks')" data-nav="tasks" class="nav-btn flex flex-col items-center justify-center py-1.5 rounded-2xl text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 font-medium transition">
+        <i data-lucide="book-marked" class="w-4 h-4 sm:w-5 sm:h-5"></i>
+        <span data-i18n="navTasks" class="text-[9px] sm:text-[11px] mt-1 leading-tight text-center">Tasks</span>
+      </button>
+      <button onclick="switchTab('notes')" data-nav="notes" class="nav-btn flex flex-col items-center justify-center py-1.5 rounded-2xl text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 font-medium transition">
+        <i data-lucide="sticky-note" class="w-4 h-4 sm:w-5 sm:h-5"></i>
+        <span data-i18n="navNotes" class="text-[9px] sm:text-[11px] mt-1 leading-tight">Notes</span>
+      </button>
+    </div>
+  </nav>
+
+  <!-- CUSTOM SUBJECT MODAL -->
+  <div id="customSubjectModal" class="fixed inset-0 z-50 hidden items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4">
+    <div class="bg-white dark:bg-slate-900 rounded-3xl max-w-md w-full p-6 space-y-4 shadow-2xl border border-emerald-100 dark:border-slate-800">
+      <div class="flex items-center justify-between">
+        <h3 data-i18n="modalSubTitle" class="text-lg font-extrabold text-slate-800 dark:text-white">Add Any Custom Subject</h3>
+        <button onclick="closeCustomSubjectModal()" class="p-1.5 rounded-full hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-500">
+          <i data-lucide="x" class="w-5 h-5"></i>
+        </button>
+      </div>
+      <form onsubmit="saveCustomSubject(event)" class="space-y-3.5">
+        <div>
+          <div class="flex items-center justify-between mb-1">
+            <label data-i18n="subNameLabel" class="text-xs font-bold text-slate-600 dark:text-slate-300">Subject Name (Any Language)</label>
+            <button type="button" onclick="fillRandomSubjectInModal()" class="text-xs font-bold text-sky-600 dark:text-sky-400 hover:underline">
+              🎲 <span data-i18n="pickRandomLink">Pick Random</span>
+            </button>
+          </div>
+          <input
+            id="customSubNameInput"
+            type="text"
+            required
+            placeholder="e.g., Chemistry, Coding, ইতিহাস..."
+            class="w-full px-3.5 py-2.5 rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-sm text-slate-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-emerald-500"
+          />
+        </div>
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label data-i18n="subEmojiLabel" class="block text-xs font-bold text-slate-600 dark:text-slate-300 mb-1">Icon / Emoji</label>
+            <select id="customSubEmojiInput" class="w-full px-3 py-2.5 rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-sm text-slate-800 dark:text-white">
+              <option value="📘">📘 Book</option>
+              <option value="🧪">🧪 Science</option>
+              <option value="📐">📐 Math</option>
+              <option value="💻">💻 Coding</option>
+              <option value="🌍">🌍 Geography/History</option>
+              <option value="🎨">🎨 Arts/Music</option>
+              <option value="🗣️">🗣️ Language</option>
+              <option value="🧠">🧠 General Knowledge</option>
+            </select>
+          </div>
+          <div>
+            <label data-i18n="subProgressLabel" class="block text-xs font-bold text-slate-600 dark:text-slate-300 mb-1">Initial Progress (%)</label>
+            <input id="customSubProgressInput" type="number" min="0" max="100" value="15" class="w-full px-3 py-2.5 rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-sm text-slate-800 dark:text-white" />
+          </div>
+        </div>
+        <button type="submit" class="btn-3d w-full py-3 rounded-2xl bg-gradient-to-r from-emerald-600 to-sky-600 text-white font-extrabold text-sm shadow-lg">
+          <span data-i18n="saveSubBtn">Add Subject Now</span>
+        </button>
+      </form>
+    </div>
+  </div>
+
+  <!-- STUDY SLOT MODAL -->
+  <div id="slotModal" class="fixed inset-0 z-50 hidden items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4">
+    <div class="bg-white dark:bg-slate-900 rounded-3xl max-w-md w-full p-6 space-y-4 shadow-2xl border border-emerald-100 dark:border-slate-800">
+      <div class="flex items-center justify-between">
+        <h3 data-i18n="modalSlotTitle" class="text-lg font-extrabold text-slate-800 dark:text-white">Add Study Time Slot</h3>
+        <button onclick="closeSlotModal()" class="p-1.5 rounded-full hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-500">
+          <i data-lucide="x" class="w-5 h-5"></i>
+        </button>
+      </div>
+      <form onsubmit="saveNewSlot(event)" class="space-y-3.5">
+        <div>
+          <label data-i18n="slotDayLabel" class="block text-xs font-bold text-slate-600 dark:text-slate-300 mb-1">Day</label>
+          <select id="slotDayInput" class="w-full px-3.5 py-2.5 rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-sm font-medium text-slate-800 dark:text-white"></select>
+        </div>
+        <div>
+          <label data-i18n="slotTimeLabel" class="block text-xs font-bold text-slate-600 dark:text-slate-300 mb-1">Time Range</label>
+          <input id="slotTimeInput" type="text" required placeholder="e.g., 06:00 AM - 07:30 AM" class="w-full px-3.5 py-2.5 rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-sm text-slate-800 dark:text-white" />
+        </div>
+        <div>
+          <div class="flex items-center justify-between mb-1">
+            <label data-i18n="slotSubjectLabel" class="text-xs font-bold text-slate-600 dark:text-slate-300">Subject</label>
+            <button type="button" onclick="fillRandomSlotInModal()" class="text-xs font-bold text-sky-600 dark:text-sky-400 hover:underline">
+              🎲 <span data-i18n="pickRandomLink">Pick Random</span>
+            </button>
+          </div>
+          <input
+            id="slotSubjectInput"
+            list="savedSubjectsDatalist"
+            type="text"
+            required
+            placeholder="Type any subject..."
+            class="w-full px-3.5 py-2.5 rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-sm text-slate-800 dark:text-white"
+          />
+          <datalist id="savedSubjectsDatalist"></datalist>
+        </div>
+        <div>
+          <label data-i18n="slotTopicLabel" class="block text-xs font-bold text-slate-600 dark:text-slate-300 mb-1">Topic / Chapter</label>
+          <input id="slotTopicInput" type="text" required placeholder="e.g., Chapter 1 Revision" class="w-full px-3.5 py-2.5 rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-sm text-slate-800 dark:text-white" />
+        </div>
+        <button type="submit" class="btn-3d w-full py-3 rounded-2xl bg-gradient-to-r from-emerald-600 to-sky-600 text-white font-extrabold text-sm shadow-lg">
+          <span data-i18n="saveSlotBtn">Save to Study Table</span>
+        </button>
+      </form>
+    </div>
+  </div>
+
+  <!-- GUIDE MODAL -->
+  <div id="guideModal" class="fixed inset-0 z-50 hidden items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4">
+    <div class="bg-white dark:bg-slate-900 rounded-3xl max-w-md w-full p-6 space-y-4 shadow-2xl max-h-[85vh] overflow-y-auto border border-slate-800">
+      <div class="flex items-center justify-between">
+        <div class="flex items-center gap-2.5">
+          <div class="w-9 h-9 rounded-xl bg-emerald-100 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300 flex items-center justify-center">
+            <i data-lucide="smartphone" class="w-5 h-5"></i>
+          </div>
+          <h3 data-i18n="guideTitle" class="text-base sm:text-lg font-extrabold text-slate-800 dark:text-white">Install on Android Home Screen</h3>
+        </div>
+        <button onclick="closeGuideModal()" class="p-1.5 rounded-full hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-500">
+          <i data-lucide="x" class="w-5 h-5"></i>
+        </button>
+      </div>
+      <div id="guideBody" class="space-y-3 text-xs sm:text-sm text-slate-600 dark:text-slate-300 leading-relaxed"></div>
+      <button onclick="closeGuideModal()" class="btn-3d w-full py-2.5 rounded-2xl bg-slate-900 dark:bg-slate-800 text-white font-bold text-xs sm:text-sm">
+        <span data-i18n="gotItBtn">Got It!</span>
+      </button>
+    </div>
+  </div>
+
+  <!-- TOAST -->
+  <div id="toastBox" class="fixed top-20 left-1/2 -translate-x-1/2 z-50 pointer-events-none opacity-0 transition-all duration-300">
+    <div id="toastMsg" class="px-4 py-2 rounded-full bg-slate-900/90 dark:bg-emerald-600 text-white text-xs font-bold shadow-xl backdrop-blur-md"></div>
+  </div>
+
+  <script>
+    // Ultra-Deep 3D WebGL Background Simulation with Multi-layered Geometric Shapes, Glowing Particles & Dynamic Lighting
+    function initThreeBackground() {
+      try {
+        const canvas = document.getElementById("bg3dCanvas");
+        if (!canvas || typeof THREE === "undefined") return;
+
+        const scene = new THREE.Scene();
+        const camera = new THREE.PerspectiveCamera(65, window.innerWidth / window.innerHeight, 0.1, 1000);
+        camera.position.z = 32;
+
+        const renderer = new THREE.WebGLRenderer({ canvas, alpha: true, antialias: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+
+        // Atmospheric & Glowing Lighting Setup
+        const ambientLight = new THREE.AmbientLight(0x0f2a4a, 1.5);
+        scene.add(ambientLight);
+
+        const pointLight1 = new THREE.PointLight(0x10b981, 3.5, 60);
+        pointLight1.position.set(15, 20, 10);
+        scene.add(pointLight1);
+
+        const pointLight2 = new THREE.PointLight(0x0284c7, 3.5, 60);
+        pointLight2.position.set(-15, -20, 10);
+        scene.add(pointLight2);
+
+        const dirLight = new THREE.DirectionalLight(0xffffff, 2.0);
+        dirLight.position.set(10, 30, 20);
+        scene.add(dirLight);
+
+        // Multiple Layers of Geometric Shapes (Icosahedrons, Torus Knots, Dodecahedrons, Octahedrons)
+        const geometries = [
+          new THREE.IcosahedronGeometry(1.5, 0),
+          new THREE.TorusKnotGeometry(1.1, 0.35, 64, 12),
+          new THREE.OctahedronGeometry(1.4, 0),
+          new THREE.DodecahedronGeometry(1.3, 0),
+          new THREE.BoxGeometry(1.6, 1.6, 1.6)
+        ];
+
+        const neonColors = [0x10b981, 0x0ea5e9, 0x14b8a6, 0x38bdf8, 0x34d399, 0x6366f1, 0xa855f7];
+        const meshes = [];
+
+        for (let i = 0; i < 35; i++) {
+          const geom = geometries[i % geometries.length];
+          const isWire = i % 3 === 0;
+          const mat = new THREE.MeshPhysicalMaterial({
+            color: neonColors[i % neonColors.length],
+            roughness: 0.15,
+            metalness: 0.3,
+            transmission: 0.45,
+            thickness: 1.2,
+            transparent: true,
+            opacity: 0.32 + Math.random() * 0.2,
+            wireframe: isWire
+          });
+
+          const mesh = new THREE.Mesh(geom, mat);
+          // Distribute across ultra-deep z space (-35 to +10)
+          mesh.position.set(
+            (Math.random() - 0.5) * 55,
+            (Math.random() - 0.5) * 40,
+            (Math.random() - 0.5) * 45 - 5
+          );
+          mesh.rotation.set(Math.random() * Math.PI, Math.random() * Math.PI, Math.random() * Math.PI);
+          const scale = 0.5 + Math.random() * 1.2;
+          mesh.scale.set(scale, scale, scale);
+          scene.add(mesh);
+
+          meshes.push({
+            mesh,
+            rotX: (Math.random() - 0.5) * 0.015,
+            rotY: (Math.random() - 0.5) * 0.018,
+            rotZ: (Math.random() - 0.5) * 0.01,
+            floatSpeed: 0.003 + Math.random() * 0.007,
+            offset: Math.random() * Math.PI * 2
+          });
+        }
+
+        // Floating Glowing Particle Field
+        const particleCount = 400;
+        const particleGeometry = new THREE.BufferGeometry();
+        const particlePositions = new Float32Array(particleCount * 3);
+
+        for (let i = 0; i < particleCount * 3; i += 3) {
+          particlePositions[i] = (Math.random() - 0.5) * 70;
+          particlePositions[i + 1] = (Math.random() - 0.5) * 50;
+          particlePositions[i + 2] = (Math.random() - 0.5) * 50;
+        }
+
+        particleGeometry.setAttribute('position', new THREE.BufferAttribute(particlePositions, 3));
+        const particleMaterial = new THREE.PointsMaterial({
+          color: 0x34d399,
+          size: 0.35,
+          transparent: true,
+          opacity: 0.65,
+          blending: THREE.AdditiveBlending
+        });
+
+        const particleField = new THREE.Points(particleGeometry, particleMaterial);
+        scene.add(particleField);
+
+        let targetMouseX = 0;
+        let targetMouseY = 0;
+        window.addEventListener("mousemove", e => {
+          targetMouseX = (e.clientX / window.innerWidth - 0.5) * 4.0;
+          targetMouseY = -(e.clientY / window.innerHeight - 0.5) * 4.0;
+        });
+
+        window.addEventListener("resize", () => {
+          camera.aspect = window.innerWidth / window.innerHeight;
+          camera.updateProjectionMatrix();
+          renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+
+        let clockTime = 0;
+        function animate3D() {
+          requestAnimationFrame(animate3D);
+          clockTime += 0.016;
+
+          // Rotate and float geometric shapes
+          meshes.forEach(item => {
+            item.mesh.rotation.x += item.rotX;
+            item.mesh.rotation.y += item.rotY;
+            item.mesh.rotation.z += item.rotZ;
+            item.mesh.position.y += Math.sin(clockTime * 1.2 + item.offset) * item.floatSpeed;
+          });
+
+          // Gentle particle field rotation
+          particleField.rotation.y = clockTime * 0.03;
+
+          // Smooth camera parallax following mouse
+          camera.position.x += (targetMouseX - camera.position.x) * 0.05;
+          camera.position.y += (targetMouseY - camera.position.y) * 0.05;
+          camera.lookAt(scene.position);
+
+          renderer.render(scene, camera);
+        }
+        animate3D();
+      } catch (e) {
+        console.warn("3D background fallback:", e);
+      }
+    }
+
+    // Bilingual dictionary with exact header sub-headlines
+    const i18n = {
+      en: {
+        headerSubtitle: "Small daily efforts lead to great success tomorrow.",
+        toggleBtn: "বাংলা",
+        welcomeBadge: "Welcome to Rupam Smart Study Table",
+        heroTitle: "Study smarter, achieve greater goals",
+        heroDesc: "Organize any custom subject, set your personal daily routine, focus with the Pomodoro timer, and master your syllabus.",
+        liveMode: "3D Smart Mode",
+        quickAddSubBtn: "+ Subject",
+        startFocusBtn: "Start Focus",
+        editGoal: "Edit Routine",
+        dailyGoalLabel: "Today's Study Goal",
+        viewAll: "View All",
+        tasksDoneLabel: "Tasks Completed",
+        momentumHint: "Keep up your momentum!",
+        randomSubMini: "🎲 Random",
+        subjectsLabel: "Study Subjects & Slots",
+        smartOrganized: "Any Custom Subject Ready",
+        todayScheduleTitle: "Today's Study Schedule",
+        manageTable: "Manage Table",
+        studyTableHeading: "Smart Study Table",
+        studyTableSub: "Schedule any subject or generate random study slots",
+        randomSlotBtn: "Random Slot",
+        addSlotBtn: "Add Study Slot",
+        pomodoroBadge: "3D Deep Focus Timer",
+        focusSubjectLabel: "Studying:",
+        customFocusLabel: "Focus Min:",
+        customBreakLabel: "Break Min:",
+        setBtn: "Set",
+        subjectsHeading: "All Subjects & Syllabus",
+        subjectsSub: "Add any custom subject or pick a random one",
+        randomSubBtn: "Random Subject",
+        addSubjectBtn: "Add Any Subject",
+        tasksHeading: "Homework & Study Tasks",
+        tasksSub: "Organize daily assignments and exam prep",
+        addBtn: "Add",
+        notesHeading: "Smart Quick Notes",
+        notesSub: "Auto-saved locally on your device",
+        copyBtn: "Copy",
+        clearBtn: "Clear",
+        savedLocally: "Saved",
+        navDashboard: "Dashboard",
+        navRoutine: "Routine",
+        navTable: "Table",
+        navTimer: "Timer",
+        navTasks: "Tasks",
+        navNotes: "Notes",
+        modalSubTitle: "Add Any Custom Subject",
+        subNameLabel: "Subject Name (Any Language)",
+        pickRandomLink: "Pick Random",
+        subEmojiLabel: "Icon / Emoji",
+        subProgressLabel: "Initial Progress (%)",
+        saveSubBtn: "Add Subject Now",
+        modalSlotTitle: "Add Study Time Slot",
+        slotDayLabel: "Day",
+        slotTimeLabel: "Time Range",
+        slotSubjectLabel: "Subject",
+        slotTopicLabel: "Topic / Chapter",
+        saveSlotBtn: "Save to Study Table",
+        routinePlannerBadge: "Personal Daily Routine",
+        routineTitle: "Personal Daily Routine",
+        routineSub: "Customize your daily wake up, sleep, college, and study hours.",
+        saveRoutineBtn: "Save Routine",
+        wakeLabel: "Wake-up Time",
+        sleepLabel: "Sleeping Time",
+        collegeTimeLabel: "College / School Time Range",
+        dailyStudyHoursLabel: "Daily Study Target (Hours)",
+        breakDurationLabel: "Break Duration (mins)",
+        mealTimesLabel: "Meal Times",
+        guideTitle: "Use as Android App",
+        gotItBtn: "Got It!"
+      },
+      bn: {
+        headerSubtitle: "আজকের ছোট্ট প্রচেষ্টা, আগামীদিনের বড় সাফল্য।",
+        toggleBtn: "English",
+        welcomeBadge: "রূপম স্মার্ট স্টাডি টেবিলে স্বাগতম",
+        heroTitle: "স্মার্টভাবে পড়াশোনা করুন, বড় লক্ষ্য অর্জন করুন",
+        heroDesc: "যেকোনো বিষয় যোগ করুন, নিজের রুটিন সাজান, পমোডোরো টাইমারে মনোযোগ দিন এবং সিলেবাস সম্পন্ন করুন।",
+        liveMode: "থ্রিডি স্মার্ট মোড",
+        quickAddSubBtn: "+ বিষয়",
+        startFocusBtn: "পড়া শুরু করুন",
+        editGoal: "রুটিন পরিবর্তন",
+        dailyGoalLabel: "আজকের পড়ার লক্ষ্য",
+        viewAll: "সব দেখুন",
+        tasksDoneLabel: "সম্পন্ন কাজ",
+        momentumHint: "দারুণ গতিতে এগিয়ে চলুন!",
+        randomSubMini: "🎲 র‍্যান্ডম",
+        subjectsLabel: "বিষয় ও পড়ার স্লট",
+        smartOrganized: "যেকোনো বিষয় যোগ করা যাবে",
+        todayScheduleTitle: "আজকের পড়ার সময়সূচী",
+        manageTable: "টেবিল সাজান",
+        studyTableHeading: "স্মার্ট স্টাডি টেবিল",
+        studyTableSub: "যেকোনো বিষয় বা র‍্যান্ডম স্লট দিয়ে রুটিন তৈরি করুন",
+        randomSlotBtn: "র‍্যান্ডম স্লট",
+        addSlotBtn: "নতুন স্লট যোগ করুন",
+        pomodoroBadge: "থ্রিডি ডিপ ফোকাস টাইমার",
+        focusSubjectLabel: "পড়ার বিষয়:",
+        customFocusLabel: "ফোকাস মিনিট:",
+        customBreakLabel: "ব্রেক মিনিট:",
+        setBtn: "সেট",
+        subjectsHeading: "সব বিষয় ও সিলেবাস অগ্রগতি",
+        subjectsSub: "যেকোনো কাস্টম বা র‍্যান্ডম বিষয় যোগ করুন",
+        randomSubBtn: "র‍্যান্ডম বিষয়",
+        addSubjectBtn: "যেকোনো বিষয় যোগ করুন",
+        tasksHeading: "হোমওয়ার্ক ও পড়ার তালিকা",
+        tasksSub: "প্রতিদিনের অ্যাসাইনমেন্ট ও পরীক্ষার প্রস্তুতি গুছিয়ে রাখুন",
+        addBtn: "যোগ করুন",
+        notesHeading: "স্মার্ট কুইক নোটস",
+        notesSub: "আপনার ডিভাইসে স্বয়ংক্রিয়ভাবে সেভ থাকে",
+        copyBtn: "কপি",
+        clearBtn: "মুছুন",
+        savedLocally: "সেভ হয়েছে",
+        navDashboard: "ড্যাশবোর্ড",
+        navRoutine: "রুটিন",
+        navTable: "টেবিল",
+        navTimer: "টাইমার",
+        navTasks: "টাস্ক",
+        navNotes: "নোটস",
+        modalSubTitle: "যেকোনো নতুন বিষয় যোগ করুন",
+        subNameLabel: "বিষয়ের নাম (বাংলা বা ইংরেজি)",
+        pickRandomLink: "র‍্যান্ডম নিন",
+        subEmojiLabel: "আইকন / ইমোজি",
+        subProgressLabel: "প্রাথমিক অগ্রগতি (%)",
+        saveSubBtn: "বিষয় যোগ করুন",
+        modalSlotTitle: "নতুন পড়ার সময় যোগ করুন",
+        slotDayLabel: "বার নির্বাচন করুন",
+        slotTimeLabel: "সময়সীমা",
+        slotSubjectLabel: "বিষয়",
+        slotTopicLabel: "অধ্যায় / টপিক",
+        saveSlotBtn: "স্টাডি টেবিলে সেভ করুন",
+        routinePlannerBadge: "ব্যক্তিগত দৈনিক রুটিন",
+        routineTitle: "পারসোনাল ডেইলি রুটিন",
+        routineSub: "আপনার ঘুম থেকে ওঠা, ঘুমানোর সময়, কলেজ এবং পড়াশোনার সময় কাস্টমাইজ করুন।",
+        saveRoutineBtn: "সেভ রুটিন",
+        wakeLabel: "ঘুম থেকে ওঠার সময়",
+        sleepLabel: "ঘুমানোর সময়",
+        collegeTimeLabel: "কলেজ / স্কুলের সময়সীমা",
+        dailyStudyHoursLabel: "দৈনিক পড়ার লক্ষ্য (ঘণ্টা)",
+        breakDurationLabel: "বিরতির সময় (মিনিট)",
+        mealTimesLabel: "খাবারের সময়সমূহ",
+        guideTitle: "অ্যান্ড্রয়েড অ্যাপ হিসেবে ব্যবহার করুন",
+        gotItBtn: "বুঝেছি!"
+      }
+    };
+
+    const randomSubjectPool = [
+      { en: "Chemistry", bn: "রসায়ন", emoji: "🧪", topicEn: "Organic Reactions", topicBn: "জৈব রসায়ন" },
+      { en: "Biology", bn: "জীববিজ্ঞান", emoji: "🧬", topicEn: "Cell Genetics", topicBn: "বংশগতি" },
+      { en: "History", bn: "ইতিহাস", emoji: "🏛️", topicEn: "World Civilization", topicBn: "বিশ্ব সভ্যতা" },
+      { en: "Geography", bn: "ভূগোল", emoji: "🌍", topicEn: "Climate Systems", topicBn: "জলবায়ু" },
+      { en: "Economics", bn: "অর্থনীতি", emoji: "📊", topicEn: "Macroeconomics", topicBn: "অর্থনীতি" },
+      { en: "Computer Programming", bn: "কম্পিউটার প্রোগ্রামিং", emoji: "💻", topicEn: "Algorithms & Logic", topicBn: "অ্যালগরিদম" },
+      { en: "Bengali Literature", bn: "বাংলা সাহিত্য", emoji: "📖", topicEn: "Poetry Analysis", topicBn: "কবিতা বিশ্লেষণ" },
+      { en: "General Knowledge", bn: "সাধারণ জ্ঞান", emoji: "🧠", topicEn: "Current Affairs", topicBn: "সাম্প্রতিক তথ্য" }
+    ];
+
+    const quotes = [
+      {
+        en: "Success is the sum of small efforts, repeated day in and day out.",
+        authorEn: "Robert Collier",
+        bn: "সাফল্য হলো প্রতিদিনকার ছোট ছোট প্রচেষ্টার সমষ্টি।",
+        authorBn: "রবার্ট কলিয়ার"
+      },
+      {
+        en: "It is not in the stars to hold our destiny but in ourselves.",
+        authorEn: "William Shakespeare",
+        bn: "আমাদের ভাগ্য নক্ষত্রের উপর নির্ভর করে না, বরং আমাদের নিজেদের হাতেই থাকে।",
+        authorBn: "উইলিয়াম শেক্সপিয়র"
+      },
+      {
+        en: "Have a heart that never hardens, and a temper that never tires, and a touch that never hurts.",
+        authorEn: "Charles Dickens",
+        bn: "এমন একটি হৃদয় রাখো যা কখনো কঠোর হয় না, এমন ধৈর্য রাখো যা কখনো ফুরোয় না।",
+        authorBn: "চার্লস ডিকেন্স"
+      },
+      {
+        en: "Be yourself; everyone else is already taken.",
+        authorEn: "Oscar Wilde",
+        bn: "নিজে হও; বাকি সবাই তো আগেই দখল হয়ে গেছে।",
+        authorBn: "অস্কার ওয়াইল্ড"
+      },
+      {
+        en: "The secret of getting ahead is getting started.",
+        authorEn: "Mark Twain",
+        bn: "এগিয়ে যাওয়ার গোপন রহস্য হলো কাজটি শুরু করে দেওয়া।",
+        authorBn: "মার্ক টোয়েন"
+      },
+      {
+        en: "Education is the most powerful weapon which you can use to change the world.",
+        authorEn: "Nelson Mandela",
+        bn: "শিক্ষাই সবচেয়ে শক্তিশালী অস্ত্র যা দিয়ে তুমি বিশ্ব বদলে দিতে পারো।",
+        authorBn: "নেলসন ম্যান্ডেলা"
+      }
+    ];
+
+    const daysList = [
+      { id: "Mon", en: "Mon", bn: "সোম" },
+      { id: "Tue", en: "Tue", bn: "মঙ্গল" },
+      { id: "Wed", en: "Wed", bn: "বুধ" },
+      { id: "Thu", en: "Thu", bn: "বৃহঃ" },
+      { id: "Fri", en: "Fri", bn: "শুক্র" },
+      { id: "Sat", en: "Sat", bn: "শনি" },
+      { id: "Sun", en: "Sun", bn: "রবি" }
+    ];
+
+    let lang = localStorage.getItem("rupam_lang") || "en";
+    let isDarkMode = localStorage.getItem("rupam_dark_mode") === "true";
+    let quoteIndex = 0;
+    let selectedDay = "Mon";
+    let studiedMinutes = parseInt(localStorage.getItem("rupam_studied_mins") || "45", 10);
+    let streakDays = parseInt(localStorage.getItem("rupam_streak") || "1", 10);
+
+    let personalRoutine = JSON.parse(localStorage.getItem("rupam_personal_routine") || "null") || {
+      wake: "06:00",
+      sleep: "22:00",
+      collegeStart: "09:00",
+      collegeEnd: "15:00",
+      studyHours: 4,
+      breakMins: 15,
+      meals: "8:00 AM, 2:00 PM, 9:00 PM"
+    };
+
+    let routineSlots = JSON.parse(localStorage.getItem("rupam_routine") || "null") || [
+      { id: 1, day: "Mon", time: "06:30 AM - 08:00 AM", subject: "Mathematics", topic: "Calculus & Algebra", done: false },
+      { id: 2, day: "Mon", time: "05:00 PM - 06:30 PM", subject: "Physics", topic: "Optics & Mechanics", done: false },
+      { id: 3, day: "Tue", time: "07:00 AM - 08:30 AM", subject: "English", topic: "Grammar & Composition", done: false },
+      { id: 4, day: "Wed", time: "06:00 PM - 07:30 PM", subject: "Computer Science", topic: "Web & Algorithms", done: false }
+    ];
+
+    let subjects = JSON.parse(localStorage.getItem("rupam_subjects") || "null") || [
+      { id: 1, name: "Mathematics", emoji: "📐", progress: 65, color: "from-emerald-500 to-teal-500" },
+      { id: 2, name: "Physics", emoji: "⚛️", progress: 50, color: "from-sky-500 to-blue-600" },
+      { id: 3, name: "English", emoji: "📘", progress: 80, color: "from-teal-500 to-emerald-600" },
+      { id: 4, name: "Computer Science", emoji: "💻", progress: 70, color: "from-cyan-500 to-sky-600" }
+    ];
+
+    let tasks = JSON.parse(localStorage.getItem("rupam_tasks") || "null") || [
+      { id: 101, text: "Complete Chapter 4 Trigonometry Problems", priority: "High", done: false },
+      { id: 102, text: "Revise Physics Formula Sheet", priority: "Medium", done: true }
+    ];
+
+    let timerDuration = 25 * 60;
+    let timeLeft = 25 * 60;
+    let timerMode = "focus";
+    let timerInterval = null;
+    let isRunning = false;
+
+    function toggleDarkMode() {
+      isDarkMode = !isDarkMode;
+      localStorage.setItem("rupam_dark_mode", isDarkMode);
+      applyDarkModeState();
+      showToast(isDarkMode ? (lang === "bn" ? "নাইট ডার্ক মোড চালু হয়েছে 🌙" : "Night Dark Mode Enabled 🌙") : (lang === "bn" ? "লাইট মোড চালু হয়েছে ☀️" : "Light Mode Enabled ☀️"));
+    }
+
+    function applyDarkModeState() {
+      const root = document.documentElement;
+      const body = document.body;
+      const icon = document.getElementById("darkModeIcon");
+
+      if (isDarkMode) {
+        root.classList.remove("light");
+        root.classList.add("dark");
+        body.classList.remove("light");
+        body.classList.add("dark");
+        if (icon) icon.setAttribute("data-lucide", "sun");
+      } else {
+        root.classList.remove("dark");
+        root.classList.add("light");
+        body.classList.remove("dark");
+        body.classList.add("light");
+        if (icon) icon.setAttribute("data-lucide", "moon");
+      }
+      lucide.createIcons();
+    }
+
+    function downloadAppCode() {
+      const htmlContent = document.documentElement.outerHTML;
+      const blob = new Blob([htmlContent], { type: "text/html" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = "Rupam_Smart_Study_Table.html";
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      showToast(lang === "bn" ? "অ্যাপের কোড ডাউনলোড হয়েছে!" : "App code downloaded successfully!");
+    }
+
+    function init3DTilt() {
+      const cards = document.querySelectorAll("[data-tilt]");
+      cards.forEach(card => {
+        if (card.dataset.tiltBound) return;
+        card.dataset.tiltBound = "true";
+        const glare = card.querySelector(".glare-layer");
+
+        const handleMove = (clientX, clientY) => {
+          const rect = card.getBoundingClientRect();
+          const x = clientX - rect.left;
+          const y = clientY - rect.top;
+          const centerX = rect.width / 2;
+          const centerY = rect.height / 2;
+          const rotateX = ((y - centerY) / centerY) * -8;
+          const rotateY = ((x - centerX) / centerX) * 8;
+
+          card.style.animation = "none";
+          card.style.transform = `perspective(1400px) rotateX(${rotateX.toFixed(2)}deg) rotateY(${rotateY.toFixed(2)}deg) scale3d(1.015, 1.015, 1.015)`;
+
+          if (glare) {
+            const px = (x / rect.width) * 100;
+            const py = (y / rect.height) * 100;
+            glare.style.background = `radial-gradient(circle at ${px}% ${py}%, rgba(255,255,255,0.35), transparent 65%)`;
+            glare.style.opacity = "1";
+          }
+        };
+
+        const handleLeave = () => {
+          card.style.transform = "perspective(1400px) rotateX(0deg) rotateY(0deg) scale3d(1, 1, 1)";
+          if (glare) glare.style.opacity = "0";
+          if (card.classList.contains("animate-float-3d")) {
+            setTimeout(() => { card.style.animation = ""; }, 220);
+          }
+        };
+
+        card.addEventListener("mousemove", e => handleMove(e.clientX, e.clientY));
+        card.addEventListener("mouseleave", handleLeave);
+        card.addEventListener("touchmove", e => {
+          if (e.touches.length > 0) handleMove(e.touches[0].clientX, e.touches[0].clientY);
+        }, { passive: true });
+        card.addEventListener("touchend", handleLeave);
+      });
+    }
+
+    function toggleLanguage() {
+      lang = lang === "en" ? "bn" : "en";
+      localStorage.setItem("rupam_lang", lang);
+      applyLanguage();
+      showToast(lang === "bn" ? "বাংলা ভাষা চালু হয়েছে" : "Switched to English");
+    }
+
+    function applyLanguage() {
+      const dict = i18n[lang];
+      document.getElementById("headerSubtitle").textContent = dict.headerSubtitle;
+      document.getElementById("langToggleLabel").textContent = dict.toggleBtn;
+
+      document.querySelectorAll("[data-i18n]").forEach(el => {
+        const key = el.getAttribute("data-i18n");
+        if (dict[key]) el.textContent = dict[key];
+      });
+
+      renderQuote();
+      renderDayPills();
+      renderRoutine();
+      renderSubjects();
+      syncSubjectSelectors();
+      renderTasks();
+      updateDashboardStats();
+      loadRoutineFormValues();
+      renderGuideBody();
+    }
+
+    function renderQuote() {
+      const q = quotes[quoteIndex];
+      document.getElementById("quoteText").textContent = `"${lang === "bn" ? q.bn : q.en}"`;
+      document.getElementById("quoteAuthor").textContent = `— ${lang === "bn" ? q.authorBn : q.authorEn}`;
+    }
+
+    function nextQuote() {
+      quoteIndex = (quoteIndex + 1) % quotes.length;
+      renderQuote();
+      showToast(lang === "bn" ? "নতুন মোটিভেশনাল উক্তি!" : "New author quote loaded!");
+    }
+
+    function switchTab(tabName) {
+      document.querySelectorAll(".tab-panel").forEach(p => p.classList.remove("active"));
+      const activePanel = document.getElementById(`tab-${tabName}`);
+      if (activePanel) activePanel.classList.add("active");
+
+      document.querySelectorAll(".nav-btn").forEach(btn => {
+        const isMatch = btn.getAttribute("data-nav") === tabName;
+        btn.classList.toggle("text-emerald-600", isMatch && !isDarkMode);
+        btn.classList.toggle("dark:text-emerald-400", isMatch && isDarkMode);
+        btn.classList.toggle("font-bold", isMatch);
+        btn.classList.toggle("bg-emerald-50", isMatch && !isDarkMode);
+        btn.classList.toggle("dark:bg-emerald-950/50", isMatch && isDarkMode);
+        btn.classList.toggle("text-slate-400", !isMatch);
+      });
+
+      init3DTilt();
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    }
+
+    function loadRoutineFormValues() {
+      document.getElementById("routineWakeInput").value = personalRoutine.wake;
+      document.getElementById("routineSleepInput").value = personalRoutine.sleep;
+      document.getElementById("routineCollegeStart").value = personalRoutine.collegeStart;
+      document.getElementById("routineCollegeEnd").value = personalRoutine.collegeEnd;
+      document.getElementById("routineStudyHoursInput").value = personalRoutine.studyHours;
+      document.getElementById("routineBreakMinsInput").value = personalRoutine.breakMins;
+      document.getElementById("routineMealInput").value = personalRoutine.meals;
+    }
+
+    function savePersonalRoutine(e) {
+      if (e) e.preventDefault();
+      personalRoutine = {
+        wake: document.getElementById("routineWakeInput").value,
+        sleep: document.getElementById("routineSleepInput").value,
+        collegeStart: document.getElementById("routineCollegeStart").value,
+        collegeEnd: document.getElementById("routineCollegeEnd").value,
+        studyHours: parseInt(document.getElementById("routineStudyHoursInput").value || "4", 10),
+        breakMins: parseInt(document.getElementById("routineBreakMinsInput").value || "15", 10),
+        meals: document.getElementById("routineMealInput").value.trim()
+      };
+      localStorage.setItem("rupam_personal_routine", JSON.stringify(personalRoutine));
+      updateDashboardStats();
+      showToast(lang === "bn" ? "✨ ব্যক্তিগত রুটিন সফলভাবে সেভ হয়েছে!" : "✨ Personal Daily Routine Saved Successfully!");
+    }
+
+    function syncSubjectSelectors() {
+      const timerSelect = document.getElementById("timerSubjectSelect");
+      if (timerSelect) {
+        const currentVal = timerSelect.value;
+        timerSelect.innerHTML = subjects.map(s => `<option value="${s.name}">${s.emoji || "📘"} ${s.name}</option>`).join("");
+        if (currentVal && subjects.some(s => s.name === currentVal)) {
+          timerSelect.value = currentVal;
+        }
+      }
+
+      const datalist = document.getElementById("savedSubjectsDatalist");
+      if (datalist) {
+        datalist.innerHTML = subjects.map(s => `<option value="${s.name}">`).join("");
+      }
+    }
+
+    function ensureSubjectExists(subjectName, emoji = "📘") {
+      const clean = subjectName.trim();
+      if (!clean) return;
+      const exists = subjects.some(s => s.name.toLowerCase() === clean.toLowerCase());
+      if (!exists) {
+        const colors = ["from-emerald-500 to-teal-500", "from-sky-500 to-blue-600", "from-teal-500 to-cyan-600", "from-emerald-600 to-sky-600"];
+        subjects.push({
+          id: Date.now() + Math.floor(Math.random() * 1000),
+          name: clean,
+          emoji: emoji,
+          progress: 15,
+          color: colors[subjects.length % colors.length]
+        });
+        localStorage.setItem("rupam_subjects", JSON.stringify(subjects));
+      }
+    }
+
+    function openCustomSubjectModal() {
+      const m = document.getElementById("customSubjectModal");
+      m.classList.remove("hidden");
+      m.classList.add("flex");
+      document.getElementById("customSubNameInput").focus();
+    }
+
+    function closeCustomSubjectModal() {
+      const m = document.getElementById("customSubjectModal");
+      m.classList.add("hidden");
+      m.classList.remove("flex");
+    }
+
+    function fillRandomSubjectInModal() {
+      const pick = randomSubjectPool[Math.floor(Math.random() * randomSubjectPool.length)];
+      document.getElementById("customSubNameInput").value = lang === "bn" ? pick.bn : pick.en;
+      document.getElementById("customSubEmojiInput").value = pick.emoji;
+    }
+
+    function saveCustomSubject(e) {
+      e.preventDefault();
+      const name = document.getElementById("customSubNameInput").value.trim();
+      const emoji = document.getElementById("customSubEmojiInput").value;
+      const progress = Math.min(100, Math.max(0, parseInt(document.getElementById("customSubProgressInput").value || "15", 10)));
+      if (!name) return;
+
+      const colors = ["from-emerald-500 to-teal-500", "from-sky-500 to-blue-600", "from-teal-500 to-cyan-600", "from-emerald-600 to-sky-600"];
+      subjects.push({ id: Date.now(), name, emoji, progress, color: colors[subjects.length % colors.length] });
+      localStorage.setItem("rupam_subjects", JSON.stringify(subjects));
+      e.target.reset();
+      closeCustomSubjectModal();
+      renderSubjects();
+      syncSubjectSelectors();
+      updateDashboardStats();
+      showToast(lang === "bn" ? `"${name}" বিষয়টি যোগ হয়েছে!` : `Added "${name}"!`);
+    }
+
+    function addRandomSubjectInstant() {
+      const pick = randomSubjectPool[Math.floor(Math.random() * randomSubjectPool.length)];
+      const subName = lang === "bn" ? pick.bn : pick.en;
+      ensureSubjectExists(subName, pick.emoji);
+      renderSubjects();
+      syncSubjectSelectors();
+      updateDashboardStats();
+      showToast(lang === "bn" ? `🎲 র‍্যান্ডম বিষয় যোগ হয়েছে: ${subName}` : `🎲 Added Random Subject: ${subName}`);
+    }
+
+    function renderSubjects() {
+      const grid = document.getElementById("subjectsGrid");
+      grid.innerHTML = subjects.map(sub => `
+        <div data-tilt class="tilt-card p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 shadow-sm space-y-2.5">
+          <div class="glare-layer"></div>
+          <div class="relative z-10 flex items-center justify-between gap-2">
+            <div class="flex items-center gap-2 min-w-0">
+              <span class="text-lg shrink-0">${sub.emoji || "📘"}</span>
+              <h4 class="font-extrabold text-slate-800 dark:text-white text-sm truncate">${sub.name}</h4>
+            </div>
+            <div class="flex items-center gap-1.5 shrink-0">
+              <span class="text-xs font-bold text-emerald-700 dark:text-emerald-400">${sub.progress}%</span>
+              <button onclick="boostSubject(${sub.id})" class="px-2 py-0.5 rounded-lg bg-emerald-50 dark:bg-emerald-950/60 hover:bg-emerald-100 text-emerald-700 dark:text-emerald-300 font-bold text-xs">+10%</button>
+              <button onclick="deleteSubject(${sub.id})" class="p-1 text-slate-400 hover:text-rose-500 transition" title="Remove">
+                <i data-lucide="x" class="w-3.5 h-3.5"></i>
+              </button>
+            </div>
+          </div>
+          <div class="relative z-10 w-full h-2 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
+            <div class="h-full bg-gradient-to-r ${sub.color} rounded-full transition-all duration-300" style="width: ${sub.progress}%"></div>
+          </div>
+        </div>
+      `).join("");
+      lucide.createIcons();
+      init3DTilt();
+    }
+
+    function boostSubject(id) {
+      subjects = subjects.map(s => s.id === id ? { ...s, progress: s.progress >= 100 ? 10 : Math.min(100, s.progress + 10) } : s);
+      localStorage.setItem("rupam_subjects", JSON.stringify(subjects));
+      renderSubjects();
+    }
+
+    function deleteSubject(id) {
+      if (subjects.length <= 1) {
+        showToast(lang === "bn" ? "অন্তত একটি বিষয় রাখতে হবে" : "Keep at least one subject");
+        return;
+      }
+      subjects = subjects.filter(s => s.id !== id);
+      localStorage.setItem("rupam_subjects", JSON.stringify(subjects));
+      renderSubjects();
+      syncSubjectSelectors();
+      updateDashboardStats();
+    }
+
+    function updateDashboardStats() {
+      const hrs = Math.floor(studiedMinutes / 60);
+      const mins = studiedMinutes % 60;
+      document.getElementById("studiedBadge").textContent =
+        lang === "bn" ? `${hrs} ঘণ্টা ${mins} মি. পড়া হয়েছে` : `${hrs}h ${mins}m Studied`;
+      document.getElementById("streakBadge").textContent =
+        lang === "bn" ? `${streakDays} দিনের ধারাবাহিকতা` : `${streakDays} Day Streak`;
+
+      const goalMins = (personalRoutine.studyHours || 4) * 60;
+      const pct = Math.min(100, Math.round((studiedMinutes / goalMins) * 100));
+      document.getElementById("goalProgressText").textContent = `${studiedMinutes} / ${goalMins} min`;
+      document.getElementById("goalPercentText").textContent = `${pct}%`;
+      document.getElementById("goalProgressBar").style.width = `${pct}%`;
+
+      const doneTasks = tasks.filter(t => t.done).length;
+      document.getElementById("dashboardTaskStat").textContent = `${doneTasks} / ${tasks.length}`;
+      document.getElementById("dashboardSubjectStat").textContent =
+        lang === "bn" ? `${subjects.length}টি বিষয়` : `${subjects.length} Subjects`;
+
+      const dashList = document.getElementById("dashboardScheduleList");
+      const previewSlots = routineSlots.slice(0, 4);
+      dashList.innerHTML = previewSlots.map(s => `
+        <div class="flex items-center justify-between p-3 rounded-2xl bg-gradient-to-r from-emerald-50/75 to-sky-50/75 dark:from-emerald-950/30 dark:to-sky-950/30 border border-emerald-100 dark:border-slate-800">
+          <div class="min-w-0">
+            <span class="text-[11px] font-bold text-emerald-700 dark:text-emerald-400 block">${s.day} • ${s.time}</span>
+            <p class="text-sm font-extrabold text-slate-800 dark:text-white truncate">${s.subject}</p>
+            <p class="text-xs text-slate-500 dark:text-slate-400 truncate">${s.topic}</p>
+          </div>
+          <span class="shrink-0 w-8 h-8 rounded-xl bg-white dark:bg-slate-800 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shadow-sm">
+            <i data-lucide="book-open" class="w-4 h-4"></i>
+          </span>
+        </div>
+      `).join("");
+      lucide.createIcons();
+    }
+
+    function renderDayPills() {
+      const container = document.getElementById("dayPills");
+      container.innerHTML = daysList.map(d => {
+        const active = d.id === selectedDay;
+        return `
+          <button
+            onclick="selectDay('${d.id}')"
+            class="btn-3d px-4 py-2 rounded-2xl text-xs sm:text-sm font-bold shrink-0 ${
+              active
+                ? "bg-gradient-to-r from-emerald-600 to-sky-600 text-white shadow-md"
+                : "bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-800 hover:bg-emerald-50 dark:hover:bg-slate-800"
+            }"
+          >
+            ${lang === "bn" ? d.bn : d.en}
+          </button>
+        `;
+      }).join("");
+
+      const modalSelect = document.getElementById("slotDayInput");
+      if (modalSelect) {
+        modalSelect.innerHTML = daysList.map(d => `<option value="${d.id}" ${d.id === selectedDay ? "selected" : ""}>${lang === "bn" ? d.bn : d.en}</option>`).join("");
+      }
+    }
+
+    function selectDay(dayId) {
+      selectedDay = dayId;
+      renderDayPills();
+      renderRoutine();
+    }
+
+    function renderRoutine() {
+      const list = document.getElementById("routineList");
+      const filtered = routineSlots.filter(s => s.day === selectedDay);
+
+      if (filtered.length === 0) {
+        list.innerHTML = `
+          <div class="col-span-full text-center py-10 px-4 rounded-2xl bg-slate-50 dark:bg-slate-900/50 border border-dashed border-slate-200 dark:border-slate-800">
+            <p class="text-sm font-bold text-slate-600 dark:text-slate-300">${lang === "bn" ? "এই দিনের জন্য কোনো রুটিন যোগ করা হয়নি" : "No study slots scheduled for this day"}</p>
+            <p class="text-xs text-slate-400 mt-1">${lang === "bn" ? "'নতুন স্লট যোগ করুন' বা 'র‍্যান্ডম স্লট' বাটনে চাপ দিন" : "Click 'Add Study Slot' or 'Random Slot' above"}</p>
+          </div>
+        `;
+        return;
+      }
+
+      list.innerHTML = filtered.map(slot => `
+        <div data-tilt class="tilt-card p-4 rounded-2xl bg-white dark:bg-slate-900 border ${slot.done ? "border-emerald-300 dark:border-emerald-800 bg-emerald-50/40 dark:bg-emerald-950/30" : "border-slate-100 dark:border-slate-800"} shadow-sm flex items-start justify-between gap-3">
+          <div class="glare-layer"></div>
+          <div class="relative z-10 space-y-1 min-w-0">
+            <span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-sky-50 dark:bg-sky-950/60 text-sky-700 dark:text-sky-300 text-[11px] font-bold">
+              <i data-lucide="clock" class="w-3 h-3"></i> ${slot.time}
+            </span>
+            <h4 class="text-base font-extrabold text-slate-800 dark:text-white ${slot.done ? "line-through text-slate-400" : ""}">${slot.subject}</h4>
+            <p class="text-xs text-slate-500 dark:text-slate-400">${slot.topic}</p>
+          </div>
+          <div class="relative z-10 flex items-center gap-1.5 shrink-0">
+            <button onclick="toggleSlotDone(${slot.id})" class="p-2 rounded-xl ${slot.done ? "bg-emerald-600 text-white" : "bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-300 hover:bg-emerald-100"} transition">
+              <i data-lucide="check" class="w-4 h-4"></i>
+            </button>
+            <button onclick="deleteSlot(${slot.id})" class="p-2 rounded-xl bg-rose-50 dark:bg-rose-950/60 text-rose-500 hover:bg-rose-100 transition">
+              <i data-lucide="trash-2" class="w-4 h-4"></i>
+            </button>
+          </div>
+        </div>
+      `).join("");
+      lucide.createIcons();
+      init3DTilt();
+    }
+
+    function openSlotModal() {
+      renderDayPills();
+      syncSubjectSelectors();
+      const m = document.getElementById("slotModal");
+      m.classList.remove("hidden");
+      m.classList.add("flex");
+    }
+
+    function closeSlotModal() {
+      const m = document.getElementById("slotModal");
+      m.classList.add("hidden");
+      m.classList.remove("flex");
+    }
+
+    function fillRandomSlotInModal() {
+      const pick = randomSubjectPool[Math.floor(Math.random() * randomSubjectPool.length)];
+      const times = ["06:00 AM - 07:30 AM", "08:00 AM - 09:30 AM", "04:30 PM - 06:00 PM", "07:30 PM - 09:00 PM"];
+      document.getElementById("slotTimeInput").value = times[Math.floor(Math.random() * times.length)];
+      document.getElementById("slotSubjectInput").value = lang === "bn" ? pick.bn : pick.en;
+      document.getElementById("slotTopicInput").value = lang === "bn" ? pick.topicBn : pick.topicEn;
+    }
+
+    function addRandomRoutineSlot() {
+      const pick = randomSubjectPool[Math.floor(Math.random() * randomSubjectPool.length)];
+      const times = ["06:00 AM - 07:30 AM", "09:00 AM - 10:30 AM", "04:30 PM - 06:00 PM", "08:00 PM - 09:30 PM"];
+      const subName = lang === "bn" ? pick.bn : pick.en;
+      const topicName = lang === "bn" ? pick.topicBn : pick.topicEn;
+      const timeRange = times[Math.floor(Math.random() * times.length)];
+
+      routineSlots.push({ id: Date.now(), day: selectedDay, time: timeRange, subject: subName, topic: topicName, done: false });
+      ensureSubjectExists(subName, pick.emoji);
+      localStorage.setItem("rupam_routine", JSON.stringify(routineSlots));
+      renderRoutine();
+      renderSubjects();
+      syncSubjectSelectors();
+      updateDashboardStats();
+      showToast(lang === "bn" ? `🎲 ${subName} রুটিনে যোগ হয়েছে!` : `🎲 Added ${subName} to ${selectedDay}!`);
+    }
+
+    function saveNewSlot(e) {
+      e.preventDefault();
+      const day = document.getElementById("slotDayInput").value;
+      const time = document.getElementById("slotTimeInput").value.trim();
+      const subject = document.getElementById("slotSubjectInput").value.trim();
+      const topic = document.getElementById("slotTopicInput").value.trim();
+      if (!time || !subject) return;
+
+      routineSlots.push({ id: Date.now(), day, time, subject, topic, done: false });
+      ensureSubjectExists(subject, "📘");
+      localStorage.setItem("rupam_routine", JSON.stringify(routineSlots));
+      selectedDay = day;
+      closeSlotModal();
+      e.target.reset();
+      renderDayPills();
+      renderRoutine();
+      renderSubjects();
+      syncSubjectSelectors();
+      updateDashboardStats();
+      showToast(lang === "bn" ? "নতুন পড়ার স্লট যুক্ত হয়েছে!" : "Study slot added!");
+    }
+
+    function toggleSlotDone(id) {
+      routineSlots = routineSlots.map(s => s.id === id ? { ...s, done: !s.done } : s);
+      localStorage.setItem("rupam_routine", JSON.stringify(routineSlots));
+      renderRoutine();
+    }
+
+    function deleteSlot(id) {
+      routineSlots = routineSlots.filter(s => s.id !== id);
+      localStorage.setItem("rupam_routine", JSON.stringify(routineSlots));
+      renderRoutine();
+      updateDashboardStats();
+    }
+
+    function playChime() {
+      try {
+        const ctx = new (window.AudioContext || window.webkitAudioContext)();
+        const notes = [523.25, 659.25, 783.99, 1046.5];
+        notes.forEach((freq, i) => {
+          const osc = ctx.createOscillator();
+          const gain = ctx.createGain();
+          osc.type = "sine";
+          osc.frequency.setValueAtTime(freq, ctx.currentTime + i * 0.14);
+          gain.gain.setValueAtTime(0.18, ctx.currentTime + i * 0.14);
+          gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + i * 0.14 + 0.5);
+          osc.connect(gain);
+          gain.connect(ctx.destination);
+          osc.start(ctx.currentTime + i * 0.14);
+          osc.stop(ctx.currentTime + i * 0.14 + 0.55);
+        });
+      } catch (err) {}
+    }
+
+    function setTimerPreset(mins, mode) {
+      pauseTimer();
+      timerMode = mode;
+      timerDuration = mins * 60;
+      timeLeft = timerDuration;
+      document.getElementById("timerModeTitle").textContent =
+        mode === "focus" ? (lang === "bn" ? "ফোকাস সেশন" : "Focus Session") : (lang === "bn" ? "বিশ্রাম বিরতি" : "Relaxing Break");
+      updateTimerUI();
+    }
+
+    function applyCustomFocusTime() {
+      const inputEl = document.getElementById("customFocusMinsInput");
+      const mins = parseInt(inputEl.value, 10);
+      if (isNaN(mins) || mins <= 0) {
+        showToast(lang === "bn" ? "সঠিক ফোকাস মিনিট দিন (>0)" : "Please enter valid focus minutes (>0)");
+        return;
+      }
+      setTimerPreset(mins, 'focus');
+      showToast(lang === "bn" ? `ফোকাস টাইমার সেট হয়েছে: ${mins} মিনিট` : `Focus timer set to ${mins} minutes`);
+    }
+
+    function applyCustomBreakTime() {
+      const inputEl = document.getElementById("customBreakMinsInput");
+      const mins = parseInt(inputEl.value, 10);
+      if (isNaN(mins) || mins <= 0) {
+        showToast(lang === "bn" ? "সঠিক ব্রেক মিনিট দিন (>0)" : "Please enter valid break minutes (>0)");
+        return;
+      }
+      setTimerPreset(mins, 'break');
+      showToast(lang === "bn" ? `ব্রেক টাইমার সেট হয়েছে: ${mins} মিনিট` : `Break timer set to ${mins} minutes`);
+    }
+
+    function toggleTimer() {
+      if (isRunning) {
+        pauseTimer();
+      } else {
+        isRunning = true;
+        document.getElementById("timerStartLabel").textContent = lang === "bn" ? "বিরতি" : "Pause";
+        document.getElementById("timerStatusText").textContent = lang === "bn" ? "মনোযোগ চলছে..." : "Focusing deeply...";
+        timerInterval = setInterval(() => {
+          if (timeLeft > 0) {
+            timeLeft--;
+            updateTimerUI();
+          } else {
+            pauseTimer();
+            playChime();
+            if (timerMode === "focus") {
+              const completedMins = Math.round(timerDuration / 60);
+              studiedMinutes += completedMins;
+              localStorage.setItem("rupam_studied_mins", studiedMinutes);
+              updateDashboardStats();
+              showToast(lang === "bn" ? `দারুণ! +${completedMins} মিনিট যুক্ত হয়েছে` : `Awesome! +${completedMins} mins logged`);
+            }
+            timeLeft = timerDuration;
+            updateTimerUI();
+          }
+        }, 1000);
+      }
+    }
+
+    function pauseTimer() {
+      isRunning = false;
+      clearInterval(timerInterval);
+      document.getElementById("timerStartLabel").textContent = lang === "bn" ? "শুরু" : "Start";
+      document.getElementById("timerStatusText").textContent = lang === "bn" ? "প্রস্তুত" : "Ready to focus";
+    }
+
+    function resetTimer() {
+      pauseTimer();
+      timeLeft = timerDuration;
+      updateTimerUI();
+    }
+
+    function completeSessionEarly() {
+      studiedMinutes += 5;
+      localStorage.setItem("rupam_studied_mins", studiedMinutes);
+      updateDashboardStats();
+      playChime();
+      showToast(lang === "bn" ? "+৫ মিনিট পড়ার সময় যোগ হয়েছে!" : "+5 mins logged to today's study!");
+    }
+
+    function updateTimerUI() {
+      const m = String(Math.floor(timeLeft / 60)).padStart(2, "0");
+      const s = String(timeLeft % 60).padStart(2, "0");
+      document.getElementById("timerDisplay").textContent = `${m}:${s}`;
+      const circumference = 653.45;
+      const offset = circumference - (timeLeft / timerDuration) * circumference;
+      document.getElementById("timerRing").style.strokeDashoffset = offset;
+    }
+
+    function renderTasks() {
+      const list = document.getElementById("taskList");
+      if (tasks.length === 0) {
+        list.innerHTML = `<p class="text-center text-xs text-slate-400 py-6">${lang === "bn" ? "কোনো কাজ বাকি নেই!" : "No tasks yet. Add your homework above!"}</p>`;
+        return;
+      }
+      list.innerHTML = tasks.map(t => {
+        const badgeColor = t.priority === "High" ? "bg-rose-50 dark:bg-rose-950/60 text-rose-600 dark:text-rose-300" : t.priority === "Medium" ? "bg-amber-50 dark:bg-amber-950/60 text-amber-700 dark:text-amber-300" : "bg-sky-50 dark:bg-sky-950/60 text-sky-700 dark:text-sky-300";
+        return `
+          <div class="flex items-center justify-between gap-3 p-3.5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 shadow-sm">
+            <button onclick="toggleTask(${t.id})" class="flex items-center gap-3 text-left min-w-0 flex-1">
+              <div class="w-5 h-5 rounded-lg border-2 flex items-center justify-center shrink-0 ${t.done ? "bg-emerald-600 border-emerald-600 text-white" : "border-slate-300 dark:border-slate-700"}">
+                ${t.done ? '<i data-lucide="check" class="w-3.5 h-3.5"></i>' : ""}
+              </div>
+              <span class="text-xs sm:text-sm font-semibold truncate ${t.done ? "line-through text-slate-400" : "text-slate-800 dark:text-slate-200"}">${t.text}</span>
+            </button>
+            <div class="flex items-center gap-2 shrink-0">
+              <span class="px-2.5 py-0.5 rounded-full text-[10px] font-bold ${badgeColor}">${t.priority}</span>
+              <button onclick="deleteTask(${t.id})" class="p-1.5 text-slate-400 hover:text-rose-500 transition">
+                <i data-lucide="trash-2" class="w-4 h-4"></i>
+              </button>
+            </div>
+          </div>
+        `;
+      }).join("");
+      lucide.createIcons();
+    }
+
+    function addTask(e) {
+      e.preventDefault();
+      const input = document.getElementById("newTaskInput");
+      const priority = document.getElementById("newTaskPriority").value;
+      const text = input.value.trim();
+      if (!text) return;
+      tasks.unshift({ id: Date.now(), text, priority, done: false });
+      localStorage.setItem("rupam_tasks", JSON.stringify(tasks));
+      input.value = "";
+      renderTasks();
+      updateDashboardStats();
+      showToast(lang === "bn" ? "নতুন কাজ যোগ করা হয়েছে" : "Task added!");
+    }
+
+    function toggleTask(id) {
+      tasks = tasks.map(t => t.id === id ? { ...t, done: !t.done } : t);
+      localStorage.setItem("rupam_tasks", JSON.stringify(tasks));
+      renderTasks();
+      updateDashboardStats();
+    }
+
+    function deleteTask(id) {
+      tasks = tasks.filter(t => t.id !== id);
+      localStorage.setItem("rupam_tasks", JSON.stringify(tasks));
+      renderTasks();
+      updateDashboardStats();
+    }
+
+    function loadNotes() {
+      const saved = localStorage.getItem("rupam_notes") || "";
+      const area = document.getElementById("notesArea");
+      area.value = saved;
+      updateNoteStats(saved);
+    }
+
+    function saveNotes() {
+      const val = document.getElementById("notesArea").value;
+      localStorage.setItem("rupam_notes", val);
+      updateNoteStats(val);
+    }
+
+    function updateNoteStats(text) {
+      const words = text.trim() ? text.trim().split(/\s+/).length : 0;
+      document.getElementById("noteStats").textContent = `${words} words • ${text.length} chars`;
+    }
+
+    function copyNotes() {
+      const area = document.getElementById("notesArea");
+      area.select();
+      document.execCommand("copy");
+      showToast(lang === "bn" ? "নোটস কপি হয়েছে!" : "Notes copied to clipboard!");
+    }
+
+    function clearNotes() {
+      document.getElementById("notesArea").value = "";
+      saveNotes();
+      showToast(lang === "bn" ? "নোটস মুছে ফেলা হয়েছে" : "Notes cleared");
+    }
+
+    function renderGuideBody() {
+      const body = document.getElementById("guideBody");
+      if (lang === "bn") {
+        body.innerHTML = `
+          <div class="p-3.5 rounded-2xl bg-emerald-50 dark:bg-emerald-950/60 border border-emerald-100 dark:border-emerald-900 space-y-1.5">
+            <p class="font-bold text-emerald-900 dark:text-emerald-300">১. ফোনের হোম স্ক্রিনে অ্যাপ যোগ করুন:</p>
+            <p>আপনার অ্যান্ড্রয়েড ফোনের <strong>Google Chrome</strong> ব্রাউজারের ডানদিকে উপরে থাকা <strong>তিনটি ডট (⋮)</strong> মেনুতে চাপ দিন।</p>
+          </div>
+          <div class="p-3.5 rounded-2xl bg-sky-50 dark:bg-sky-950/60 border border-sky-100 dark:border-sky-900 space-y-1.5">
+            <p class="font-bold text-sky-900 dark:text-sky-300">২. Add to Home screen নির্বাচন করুন:</p>
+            <p>মেনু থেকে <strong>"Add to Home screen"</strong> বা <strong>"Install app"</strong> অপশনে ক্লিক করলে <strong>RUPAM SMART STUDY TABLE</strong> সরাসরি আপনার ফোনে অ্যাপ হিসেবে সেভ হয়ে যাবে।</p>
+          </div>
+        `;
+      } else {
+        body.innerHTML = `
+          <div class="p-3.5 rounded-2xl bg-emerald-50 dark:bg-emerald-950/60 border border-emerald-100 dark:border-emerald-900 space-y-1.5">
+            <p class="font-bold text-emerald-900 dark:text-emerald-300">1. Open Browser Menu:</p>
+            <p>Tap the <strong>three-dot menu (⋮)</strong> in the top-right corner of <strong>Google Chrome</strong> on your Android phone.</p>
+          </div>
+          <div class="p-3.5 rounded-2xl bg-sky-50 dark:bg-sky-950/60 border border-sky-100 dark:border-sky-900 space-y-1.5">
+            <p class="font-bold text-sky-900 dark:text-sky-300">2. Tap "Add to Home screen":</p>
+            <p>Select <strong>"Add to Home screen"</strong> or <strong>"Install app"</strong> to launch <strong>RUPAM SMART STUDY TABLE</strong> anytime like a native app.</p>
+          </div>
+        `;
+      }
+    }
+
+    function openGuideModal() {
+      renderGuideBody();
+      const m = document.getElementById("guideModal");
+      m.classList.remove("hidden");
+      m.classList.add("flex");
+    }
+
+    function closeGuideModal() {
+      const m = document.getElementById("guideModal");
+      m.classList.add("hidden");
+      m.classList.remove("flex");
+    }
+
+    function showToast(msg) {
+      const box = document.getElementById("toastBox");
+      document.getElementById("toastMsg").textContent = msg;
+      box.classList.remove("opacity-0", "-translate-y-2");
+      box.classList.add("opacity-100", "translate-y-0");
+      setTimeout(() => {
+        box.classList.add("opacity-0", "-translate-y-2");
+        box.classList.remove("opacity-100", "translate-y-0");
+      }, 2200);
+    }
+
+    function startLiveClock() {
+      const tick = () => {
+        const now = new Date();
+        document.getElementById("liveClock").textContent = now.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" });
+      };
+      tick();
+      setInterval(tick, 1000);
+    }
+
+    window.addEventListener("DOMContentLoaded", () => {
+      applyDarkModeState();
+      lucide.createIcons();
+      initThreeBackground();
+      applyLanguage();
+      loadNotes();
+      updateTimerUI();
+      startLiveClock();
+      init3DTilt();
+    });
+  </script>
+</body>
+</html>
